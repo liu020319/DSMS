@@ -1,0 +1,59 @@
+import { createRouter, createWebHashHistory } from 'vue-router'
+
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue')
+  },
+  {
+    path: '/',
+    component: () => import('../layout/AdminLayout.vue'),
+    redirect: '/dashboard',
+    meta: { requiresAuth: true, role: 'ADMIN' },
+    children: [
+      { path: 'dashboard', name: 'AdminDashboard', component: () => import('../views/admin/Dashboard.vue'), meta: { title: '首页工作台' } },
+      { path: 'medicine', name: 'Medicine', component: () => import('../views/admin/Medicine.vue'), meta: { title: '药品档案管理' } },
+      { path: 'prescription', name: 'Prescription', component: () => import('../views/admin/Prescription.vue'), meta: { title: '用药方案管理' } },
+      { path: 'purchase', name: 'Purchase', component: () => import('../views/admin/Purchase.vue'), meta: { title: '购药记录管理' } },
+      { path: 'approval', name: 'Approval', component: () => import('../views/admin/Approval.vue'), meta: { title: '审批中心' } },
+      { path: 'statistics', name: 'Statistics', component: () => import('../views/admin/Statistics.vue'), meta: { title: '统计报表中心' } },
+      { path: 'system', name: 'System', component: () => import('../views/admin/System.vue'), meta: { title: '系统管理' } },
+      { path: 'log', name: 'Log', component: () => import('../views/admin/Log.vue'), meta: { title: '操作日志' } },
+      { path: 'export', name: 'Export', component: () => import('../views/admin/Export.vue'), meta: { title: '数据导出中心' } }
+    ]
+  },
+  {
+    path: '/elder',
+    component: () => import('../layout/ElderLayout.vue'),
+    redirect: '/elder/dashboard',
+    meta: { requiresAuth: true, role: 'ELDER' },
+    children: [
+      { path: 'dashboard', name: 'ElderDashboard', component: () => import('../views/elder/Dashboard.vue'), meta: { title: '首页工作台' } },
+      { path: 'my-medicine', name: 'MyMedicine', component: () => import('../views/elder/MyMedicine.vue'), meta: { title: '我的用药' } },
+      { path: 'submit-apply', name: 'SubmitApply', component: () => import('../views/elder/SubmitApply.vue'), meta: { title: '提交用药申请' } },
+      { path: 'my-apply', name: 'MyApply', component: () => import('../views/elder/MyApply.vue'), meta: { title: '我的申请记录' } }
+    ]
+  }
+]
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes
+})
+
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  if (to.meta.requiresAuth && !token) {
+    next('/login')
+  } else if (to.meta.role && userInfo.role !== to.meta.role) {
+    if (userInfo.role === 'ADMIN') next('/')
+    else if (userInfo.role === 'ELDER') next('/elder')
+    else next('/login')
+  } else {
+    next()
+  }
+})
+
+export default router

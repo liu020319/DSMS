@@ -1,0 +1,1 @@
+import{r as i}from"./request-v-zV68Ns.js";function t(e){return i.get("/medicine/page",{params:e})}function d(){return i.get("/medicine/list")}function u(e){return i.post("/medicine/add",e)}function a(e){return i.put("/medicine/update",e)}function c(e){return i.put("/medicine/disable/"+e)}export{u as a,d as b,c as d,t as g,a as u};

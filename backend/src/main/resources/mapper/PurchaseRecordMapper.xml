@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.medicine.mapper.PurchaseRecordMapper">
+
+    <select id="selectMonthlyStatsDynamic" resultType="java.util.Map">
+        SELECT DATE_FORMAT(pr.purchase_date, '%Y-%m') as month,
+               SUM(pr.total_price) as total_amount, COUNT(*) as count
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">
+            AND pr.user_id = #{userId}
+        </if>
+        GROUP BY DATE_FORMAT(pr.purchase_date, '%Y-%m')
+        ORDER BY month
+    </select>
+
+    <select id="selectDailyStatsDynamic" resultType="java.util.Map">
+        SELECT DATE_FORMAT(pr.purchase_date, '%Y-%m-%d') as day,
+               SUM(pr.total_price) as total_amount, COUNT(*) as count
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">
+            AND pr.user_id = #{userId}
+        </if>
+        AND pr.purchase_date >= #{startDate}
+        GROUP BY DATE_FORMAT(pr.purchase_date, '%Y-%m-%d')
+        ORDER BY day
+    </select>
+
+    <select id="selectYearlyStatsDynamic" resultType="java.util.Map">
+        SELECT DATE_FORMAT(pr.purchase_date, '%Y') as year,
+               SUM(pr.total_price) as total_amount, COUNT(*) as count
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">
+            AND pr.user_id = #{userId}
+        </if>
+        GROUP BY DATE_FORMAT(pr.purchase_date, '%Y')
+        ORDER BY year
+    </select>
+
+</mapper>
