@@ -18,6 +18,7 @@ import com.medicine.service.StockService;
 import com.medicine.vo.PurchaseRecordVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -40,7 +41,9 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
     private StockService stockService;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addPurchaseRecord(PurchaseRecordDTO dto) {
+        validatePurchase(dto);
         PurchaseRecord record = new PurchaseRecord();
         record.setUserId(dto.getUserId());
         record.setPrescriptionId(dto.getPrescriptionId());
@@ -60,6 +63,7 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updatePurchaseRecord(PurchaseRecordDTO dto) {
         if (dto.getPurchaseId() == null) {
             throw new BusinessException("购药记录ID不能为空");
@@ -68,6 +72,12 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (existing == null) {
             throw new BusinessException("购药记录不存在");
         }
+        if (Integer.valueOf(1).equals(existing.getReceiptStatus())) {
+            throw new BusinessException("已确认收货的记录已计入库存，不能直接修改");
+        }
+        validatePurchase(dto);
+        existing.setUserId(dto.getUserId());
+        existing.setPrescriptionId(dto.getPrescriptionId());
         existing.setPurchaseDate(dto.getPurchaseDate());
         existing.setQuantityBoxes(dto.getQuantityBoxes());
         existing.setUnitPrice(dto.getUnitPrice());
@@ -81,10 +91,18 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
 
     @Override
     public void deletePurchaseRecord(Long purchaseId) {
+        PurchaseRecord record = getById(purchaseId);
+        if (record == null) {
+            throw new BusinessException("购药记录不存在");
+        }
+        if (Integer.valueOf(1).equals(record.getReceiptStatus())) {
+            throw new BusinessException("已确认收货的记录已计入库存，不能删除");
+        }
         removeById(purchaseId);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void confirmReceipt(Long purchaseId) {
         PurchaseRecord record = getById(purchaseId);
         if (record == null) {
@@ -96,6 +114,21 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         record.setReceiptStatus(1);
         updateById(record);
         stockService.addStockOnPurchase(record.getPrescriptionId(), record.getQuantityBoxes(), record.getExpiryDate());
+    }
+
+    private void validatePurchase(PurchaseRecordDTO dto) {
+        if (dto.getPurchaseDate() == null || dto.getExpiryDate() == null
+                || dto.getExpiryDate().isBefore(dto.getPurchaseDate())) {
+            throw new BusinessException("有效期不能早于购药日期");
+        }
+        Prescription prescription = prescriptionMapper.selectById(dto.getPrescriptionId());
+        if (prescription == null || !dto.getUserId().equals(prescription.getUserId())) {
+            throw new BusinessException("购药用户与用药方案不匹配");
+        }
+        Medicine medicine = medicineMapper.selectById(prescription.getMedicineId());
+        if (medicine == null || !Integer.valueOf(1).equals(medicine.getStatus())) {
+            throw new BusinessException("药品不存在或已禁用");
+        }
     }
 
     @Override

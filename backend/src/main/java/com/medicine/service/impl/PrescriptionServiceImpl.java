@@ -96,6 +96,8 @@ public class PrescriptionServiceImpl extends ServiceImpl<PrescriptionMapper, Pre
         prescription.setDosageUnit(dto.getDosageUnit() != null ? dto.getDosageUnit() : "片");
         prescription.setStatus(1);
         save(prescription);
+        // 将数据库生成的主键回写到 DTO，审批流程可直接使用，避免按时间查询产生并发误关联。
+        dto.setPrescriptionId(prescription.getPrescriptionId());
     }
 
     @Override

@@ -7,6 +7,8 @@ import com.medicine.entity.PurchaseRecord;
 import com.medicine.entity.SysLog;
 import com.medicine.entity.SysUser;
 import com.medicine.service.*;
+import com.medicine.util.AccessControl;
+import javax.servlet.http.HttpServletRequest;
 import com.medicine.vo.*;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +36,12 @@ public class ExportController {
     @Autowired
     private SysLogService sysLogService;
 
+    @Autowired
+    private AccessControl accessControl;
+
     @GetMapping("/medicine")
-    public void exportMedicine(HttpServletResponse response) throws Exception {
+    public void exportMedicine(HttpServletResponse response, HttpServletRequest request) throws Exception {
+        accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("药品档案", "UTF-8") + ".xlsx");
         List<Medicine> list = medicineService.list();
@@ -58,7 +64,8 @@ public class ExportController {
     }
 
     @GetMapping("/user")
-    public void exportUser(HttpServletResponse response) throws Exception {
+    public void exportUser(HttpServletResponse response, HttpServletRequest request) throws Exception {
+        accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("用户数据", "UTF-8") + ".xlsx");
         List<SysUser> list = sysUserService.list();
@@ -78,7 +85,8 @@ public class ExportController {
     }
 
     @GetMapping("/log")
-    public void exportLog(HttpServletResponse response) throws Exception {
+    public void exportLog(HttpServletResponse response, HttpServletRequest request) throws Exception {
+        accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("操作日志", "UTF-8") + ".xlsx");
         Page<SysLog> page = sysLogService.pageList(1, 10000, null, null);
@@ -98,7 +106,8 @@ public class ExportController {
     }
 
     @GetMapping("/purchase")
-    public void exportPurchase(@RequestParam(required = false) Long userId, HttpServletResponse response) throws Exception {
+    public void exportPurchase(@RequestParam(required = false) Long userId, HttpServletResponse response, HttpServletRequest request) throws Exception {
+        accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("购药记录", "UTF-8") + ".xlsx");
         List<PurchaseRecordVO> list = purchaseRecordService.listForExport(userId);

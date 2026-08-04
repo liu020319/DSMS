@@ -4,6 +4,7 @@ import com.medicine.common.Result;
 import com.medicine.entity.SysUser;
 import com.medicine.service.SysLogService;
 import com.medicine.service.SysUserService;
+import com.medicine.util.AccessControl;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +21,12 @@ public class SysUserController {
     @Autowired
     private SysLogService sysLogService;
 
+    @Autowired
+    private AccessControl accessControl;
+
     @GetMapping("/list")
-    public Result<List<SysUser>> list(@RequestParam(required = false) String role) {
+    public Result<List<SysUser>> list(@RequestParam(required = false) String role, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysUser> wrapper =
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
         if (role != null && !role.isEmpty()) {
@@ -34,7 +39,8 @@ public class SysUserController {
     }
 
     @GetMapping("/{id}")
-    public Result<SysUser> getById(@PathVariable("id") Long id) {
+    public Result<SysUser> getById(@PathVariable("id") Long id, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         SysUser user = sysUserService.getById(id);
         if (user != null) {
             user.setPassword(null);
@@ -44,6 +50,7 @@ public class SysUserController {
 
     @PostMapping("/add")
     public Result<SysUser> add(@RequestBody SysUser user, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         user.setPassword(null);
         SysUser saved = sysUserService.register(
                 new com.medicine.dto.RegisterDTO() {{
@@ -61,6 +68,7 @@ public class SysUserController {
 
     @PutMapping("/update")
     public Result<Void> update(@RequestBody SysUser user, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         user.setPassword(null);
         sysUserService.updateById(user);
         sysLogService.log(getUserId(request), "修改用户", "修改用户，编号: " + user.getUserId(), request.getRemoteAddr());
@@ -71,6 +79,7 @@ public class SysUserController {
     public Result<Void> resetPassword(@PathVariable("id") Long id,
                                        @RequestParam(defaultValue = "123456") String newPassword,
                                        HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         sysUserService.resetPassword(id, newPassword);
         sysLogService.log(getUserId(request), "重置密码", "重置密码，用户编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -78,6 +87,7 @@ public class SysUserController {
 
     @PutMapping("/bind")
     public Result<Void> bindElder(@RequestParam Long elderId, @RequestParam Long parentId, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         SysUser elder = sysUserService.getById(elderId);
         if (elder == null) {
             return Result.error("老人用户不存在");
@@ -89,7 +99,8 @@ public class SysUserController {
     }
 
     @GetMapping("/elders/{parentId}")
-    public Result<List<SysUser>> getEldersByParent(@PathVariable("parentId") Long parentId) {
+    public Result<List<SysUser>> getEldersByParent(@PathVariable("parentId") Long parentId, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         List<SysUser> elders = sysUserService.getElderByParentId(parentId);
         elders.forEach(u -> u.setPassword(null));
         return Result.success(elders);

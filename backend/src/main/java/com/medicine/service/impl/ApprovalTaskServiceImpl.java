@@ -40,6 +40,7 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
         LambdaQueryWrapper<ApprovalTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ApprovalTask::getApplicantId, dto.getApplicantId())
                .eq(ApprovalTask::getTaskType, dto.getTaskType())
+               .eq(ApprovalTask::getContentJson, dto.getContentJson())
                .eq(ApprovalTask::getStatus, "PENDING");
         if (count(wrapper) > 0) {
             throw new BusinessException(BusinessCode.APPROVAL_PENDING);
@@ -63,6 +64,7 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
         if (!"PENDING".equals(task.getStatus())) {
             throw new BusinessException("该任务已处理");
         }
+        validateHandler(task, handlerId);
         task.setStatus("APPROVED");
         task.setHandlerComment(comment);
         updateById(task);
@@ -78,6 +80,7 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
         if (!"PENDING".equals(task.getStatus())) {
             throw new BusinessException("该任务已处理");
         }
+        validateHandler(task, handlerId);
         task.setStatus("REJECTED");
         task.setHandlerComment(comment);
         updateById(task);
@@ -93,6 +96,7 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
         if (!"PENDING".equals(task.getStatus())) {
             throw new BusinessException("该任务已处理");
         }
+        validateHandler(task, handlerId);
         if (modifiedDto.getContentJson() != null) {
             task.setContentJson(modifiedDto.getContentJson());
         }
@@ -161,14 +165,14 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
         if (content.containsKey("quantityBoxes") && content.getInt("quantityBoxes") > 0) {
             PurchaseRecordDTO purchaseDTO = new PurchaseRecordDTO();
             purchaseDTO.setUserId(dto.getUserId());
-            Long prescId = getLatestPrescriptionId(dto.getUserId());
-            purchaseDTO.setPrescriptionId(prescId);
+            purchaseDTO.setPrescriptionId(dto.getPrescriptionId());
             purchaseDTO.setPurchaseDate(LocalDate.now());
             purchaseDTO.setQuantityBoxes(content.getInt("quantityBoxes"));
             purchaseDTO.setUnitPrice(content.getBigDecimal("unitPrice") != null ? content.getBigDecimal("unitPrice") : BigDecimal.ZERO);
             String expiryStr = content.getStr("expiryDate");
             purchaseDTO.setExpiryDate(expiryStr != null ? LocalDate.parse(expiryStr) : LocalDate.now().plusYears(2));
             purchaseDTO.setOperatorId(task.getHandlerId() != null ? task.getHandlerId() : dto.getUserId());
+            purchaseDTO.setReceiptStatus(1);
             purchaseRecordService.addPurchaseRecord(purchaseDTO);
         }
     }
@@ -187,12 +191,9 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
         stockService.addStockOnPurchase(prescriptionId, correctBoxes, expiryDate);
     }
 
-    private Long getLatestPrescriptionId(Long userId) {
-        LambdaQueryWrapper<com.medicine.entity.Prescription> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(com.medicine.entity.Prescription::getUserId, userId)
-               .orderByDesc(com.medicine.entity.Prescription::getCreateTime)
-               .last("LIMIT 1");
-        com.medicine.entity.Prescription p = prescriptionService.getOne(wrapper);
-        return p != null ? p.getPrescriptionId() : null;
+    private void validateHandler(ApprovalTask task, Long handlerId) {
+        if (handlerId == null || (task.getHandlerId() != null && !handlerId.equals(task.getHandlerId()))) {
+            throw new BusinessException("无权处理该审批任务");
+        }
     }
 }

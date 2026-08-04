@@ -74,8 +74,8 @@
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.receiptStatus !== 1" size="small" type="success" @click="handleConfirmReceipt(row)">确认收货</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" :disabled="row.receiptStatus === 1" @click="handleEdit(row)">编辑</el-button>
+            <el-button size="small" type="danger" :disabled="row.receiptStatus === 1" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

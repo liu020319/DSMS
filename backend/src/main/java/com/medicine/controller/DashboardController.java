@@ -4,6 +4,7 @@ import com.medicine.common.Result;
 import com.medicine.service.DashboardService;
 import com.medicine.service.StockDeductionService;
 import com.medicine.service.StockService;
+import com.medicine.util.AccessControl;
 import com.medicine.vo.DashboardVO;
 import com.medicine.vo.StockVO;
 import javax.servlet.http.HttpServletRequest;
@@ -25,33 +26,42 @@ public class DashboardController {
     @Autowired
     private StockDeductionService stockDeductionService;
 
+    @Autowired
+    private AccessControl accessControl;
+
     @GetMapping("/admin")
-    public Result<DashboardVO> adminDashboard() {
+    public Result<DashboardVO> adminDashboard(HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         return Result.success(dashboardService.getAdminDashboard());
     }
 
     @GetMapping("/elder")
-    public Result<DashboardVO> elderDashboard(@RequestParam Long userId) {
+    public Result<DashboardVO> elderDashboard(@RequestParam Long userId, HttpServletRequest request) {
+        accessControl.requireOwnerOrAdmin(request, userId);
         return Result.success(dashboardService.getElderDashboard(userId));
     }
 
     @GetMapping("/stock/all")
-    public Result<List<StockVO>> allStock(@RequestParam(required = false) Long userId) {
+    public Result<List<StockVO>> allStock(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         return Result.success(stockService.getAllStockDetail(userId));
     }
 
     @GetMapping("/stock/warning")
-    public Result<List<StockVO>> warningStock(@RequestParam(required = false) Long userId) {
+    public Result<List<StockVO>> warningStock(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         return Result.success(stockService.getWarningList(userId));
     }
 
     @GetMapping("/stock/expiring")
-    public Result<List<StockVO>> expiringStock(@RequestParam(required = false) Long userId) {
+    public Result<List<StockVO>> expiringStock(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         return Result.success(stockService.getExpiringList(userId));
     }
 
     @GetMapping("/stock/calc-boxes")
-    public Result<Integer> calcBoxes(@RequestParam Long prescriptionId, @RequestParam Integer days) {
+    public Result<Integer> calcBoxes(@RequestParam Long prescriptionId, @RequestParam Integer days, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         return Result.success(stockService.calculateBoxCount(prescriptionId, days));
     }
 
@@ -63,6 +73,7 @@ public class DashboardController {
                                           @RequestParam Integer adjustUnits,
                                           @RequestParam(required = false) String reason,
                                           HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         Long operatorId = (Long) request.getAttribute("userId");
         stockDeductionService.manualAdjustStock(stockId, adjustUnits, operatorId, reason);
         return Result.success();

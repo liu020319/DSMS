@@ -9,6 +9,7 @@ import com.medicine.service.StockDeductionService;
 import com.medicine.service.StockService;
 import com.medicine.service.SysLogService;
 import com.medicine.service.SysUserService;
+import com.medicine.util.AccessControl;
 import com.medicine.vo.LoginVO;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
@@ -35,6 +36,9 @@ public class AuthController {
     @Autowired
     private SysLogService sysLogService;
 
+    @Autowired
+    private AccessControl accessControl;
+
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {
         LoginVO vo = sysUserService.login(dto);
@@ -56,7 +60,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public Result<SysUser> register(@Valid @RequestBody RegisterDTO dto) {
+    public Result<SysUser> register(@Valid @RequestBody RegisterDTO dto, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
         SysUser user = sysUserService.register(dto);
         user.setPassword(null);
         return Result.success(user);
