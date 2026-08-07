@@ -10,7 +10,7 @@ const routes = [
     path: '/',
     component: () => import('../layout/AdminLayout.vue'),
     redirect: '/dashboard',
-    meta: { requiresAuth: true, role: 'ADMIN' },
+    meta: { requiresAuth: true, roles: ['ADMIN', 'GUARDIAN'] },
     children: [
       { path: 'dashboard', name: 'AdminDashboard', component: () => import('../views/admin/Dashboard.vue'), meta: { title: '智慧工作台' } },
       { path: 'medicine', name: 'Medicine', component: () => import('../views/admin/Medicine.vue'), meta: { title: '药品档案管理' } },
@@ -34,7 +34,7 @@ const routes = [
     path: '/elder',
     component: () => import('../layout/ElderLayout.vue'),
     redirect: '/elder/dashboard',
-    meta: { requiresAuth: true, role: 'ELDER' },
+    meta: { requiresAuth: true, roles: ['ELDER'] },
     children: [
       { path: 'dashboard', name: 'ElderDashboard', component: () => import('../views/elder/Dashboard.vue'), meta: { title: '首页工作台' } },
       { path: 'my-medicine', name: 'MyMedicine', component: () => import('../views/elder/MyMedicine.vue'), meta: { title: '我的用药' } },
@@ -59,8 +59,8 @@ router.beforeEach((to, from, next) => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
   if (to.meta.requiresAuth && !token) {
     next('/login')
-  } else if (to.meta.role && userInfo.role !== to.meta.role) {
-    if (userInfo.role === 'ADMIN') next('/')
+  } else if (to.meta.roles && !to.meta.roles.includes(userInfo.role)) {
+    if (['ADMIN', 'GUARDIAN'].includes(userInfo.role)) next('/')
     else if (userInfo.role === 'ELDER') next('/elder')
     else next('/login')
   } else {

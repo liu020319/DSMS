@@ -1,6 +1,8 @@
 # 康联云企业工作台版：保姆级发版手册
 
-适用版本：`DSMS-enterprise-console-20260808.zip`
+适用版本：`DSMS-enterprise-console-20260808-r2.zip`
+
+`r2` 是 2026-08-08 发布包的修正版：修复 MySQL 8.4 混合排序规则报错，并把校验清单统一为 Linux 可直接识别的 LF 换行。
 
 目标服务器：阿里云 Ubuntu，项目目录 `/home/xiaoliu/DSMS`，MySQL 容器名 `mysql`，后端服务名 `dsms-backend`，Nginx 网站目录 `/var/www/dsms`。
 
@@ -54,7 +56,7 @@
 本地压缩包位置：
 
 ```text
-D:\CodexWorkFiles\DSMS\output\DSMS-enterprise-console-20260808.zip
+D:\CodexWorkFiles\DSMS\output\DSMS-enterprise-console-20260808-r2.zip
 ```
 
 1. 用 MobaXterm 连接 `8.148.69.75`。
@@ -72,7 +74,7 @@ ls -ld /home/xiaoliu/upload
 5. 上传完成后执行：
 
 ```bash
-ls -lh /home/xiaoliu/upload/DSMS-enterprise-console-20260808.zip
+ls -lh /home/xiaoliu/upload/DSMS-enterprise-console-20260808-r2.zip
 ```
 
 成功标志：能看到文件名，而且大小不是 `0`。
@@ -82,9 +84,9 @@ ls -lh /home/xiaoliu/upload/DSMS-enterprise-console-20260808.zip
 ## 四、校验并解压发布包
 
 ```bash
-mkdir -p /home/xiaoliu/releases/DSMS-enterprise-console-20260808
-cd /home/xiaoliu/releases/DSMS-enterprise-console-20260808
-unzip -o /home/xiaoliu/upload/DSMS-enterprise-console-20260808.zip
+mkdir -p /home/xiaoliu/releases/DSMS-enterprise-console-20260808-r2
+cd /home/xiaoliu/releases/DSMS-enterprise-console-20260808-r2
+unzip -o /home/xiaoliu/upload/DSMS-enterprise-console-20260808-r2.zip
 pwd
 ls -lh
 ```
@@ -94,16 +96,21 @@ ls -lh
 1. 创建本次独立发布目录，避免直接覆盖正在运行的项目。
 2. 进入这个目录；后续 `SHA256SUMS.txt` 中使用的是相对路径。
 3. 解压上传包；`-o` 只会覆盖本次发布目录中的同名文件。
-4. 打印当前位置，应该是 `/home/xiaoliu/releases/DSMS-enterprise-console-20260808`。
+4. 打印当前位置，应该是 `/home/xiaoliu/releases/DSMS-enterprise-console-20260808-r2`。
 5. 检查解压结果。
 
 校验包内文件：
 
 ```bash
+# 兼容在 Windows 生成的旧版校验清单：删除每行末尾不可见的 CR 字符。
+# 新版发布包已经使用 Linux 的 LF 换行，这一行重复执行也没有副作用。
+sed -i 's/\r$//' SHA256SUMS.txt
 sha256sum -c SHA256SUMS.txt
 ```
 
-成功标志：每一行末尾都是 `OK`。任何一行出现 `FAILED` 都不要继续，重新上传 ZIP。
+`sed` 是流式文本编辑器；`-i`（in-place）表示直接修正当前文件。`s/\r$//` 表示删除每一行末尾的 Windows 回车符，不会修改被校验的 JAR、网页或 SQL 文件。
+
+成功标志：每一行末尾都是 `OK`。如果仍有任何一行出现 `FAILED`，不要继续：这说明对应文件确实不完整或不是本次版本，需要重新上传 ZIP。
 
 ---
 
@@ -191,7 +198,7 @@ sudo cp -a \
 演示数据不是系统启动的必要条件；它只是让你能体验统计和风险页面。建议先备份，再导入。
 
 ```bash
-cd /home/xiaoliu/releases/DSMS-enterprise-console-20260808
+cd /home/xiaoliu/releases/DSMS-enterprise-console-20260808-r2
 read -s -p "请输入MySQL root密码: " MYSQL_ROOT_PASSWORD
 echo
 docker exec -i mysql mysql \
@@ -209,6 +216,7 @@ unset MYSQL_ROOT_PASSWORD
 - `<` 表示把服务器上的 SQL 文件作为数据库客户端的输入。
 - 脚本会自动选择一个启用的家庭管理员和一个启用的安心用药成员，不需要在公开 SQL 中写手机号。
 - 脚本使用事务，出错会回滚；使用版本记录，同一版本再次执行会提示跳过。
+- 修正版用二进制方式比较演示数据版本号，因此兼容旧库的 `utf8mb4_general_ci` 和 MySQL 8.4 的 `utf8mb4_0900_ai_ci`，不需要修改现有数据库的排序规则。
 
 成功标志应包含：
 
@@ -238,7 +246,7 @@ unset MYSQL_ROOT_PASSWORD
 
 ```bash
 cp -a \
-  /home/xiaoliu/releases/DSMS-enterprise-console-20260808/backend/medicine-system-1.0.0.jar \
+  /home/xiaoliu/releases/DSMS-enterprise-console-20260808-r2/backend/medicine-system-1.0.0.jar \
   /home/xiaoliu/DSMS/backend/target/medicine-system-1.0.0.jar
 sudo systemctl restart dsms-backend
 sudo systemctl is-active dsms-backend
@@ -281,7 +289,7 @@ curl -sS -o /dev/null -w "HTTP %{http_code}\n" \
 sudo mv /var/www/dsms /var/www/dsms_previous_20260808
 sudo mkdir -p /var/www/dsms
 sudo cp -a \
-  /home/xiaoliu/releases/DSMS-enterprise-console-20260808/frontend/dist/. \
+  /home/xiaoliu/releases/DSMS-enterprise-console-20260808-r2/frontend/dist/. \
   /var/www/dsms/
 sudo nginx -t
 sudo systemctl reload nginx

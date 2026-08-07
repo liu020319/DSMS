@@ -16,6 +16,7 @@ import com.medicine.vo.LoginVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -165,6 +166,30 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                .eq(SysUser::getRole, "ELDER")
                .eq(SysUser::getStatus, 1);
         return list(wrapper);
+    }
+
+    public List<SysUser> getFamilyUsers(Long guardianId) {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.and(w -> w.eq(SysUser::getUserId, guardianId)
+                .or()
+                .eq(SysUser::getBindParentId, guardianId))
+               .eq(SysUser::getDeleted, 0)
+               .orderByDesc(SysUser::getCreateTime);
+        return list(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteUserOrFamily(Long userId) {
+        SysUser target = getById(userId);
+        if (target == null) throw new BusinessException("用户不存在");
+        if ("ADMIN".equals(target.getRole())) throw new BusinessException("平台管理员不能删除");
+        if ("GUARDIAN".equals(target.getRole())) {
+            remove(new LambdaQueryWrapper<SysUser>()
+                    .eq(SysUser::getBindParentId, target.getUserId())
+                    .eq(SysUser::getRole, "ELDER"));
+        }
+        removeById(userId);
     }
 
     private void clearLoginFailures(SysUser user) {

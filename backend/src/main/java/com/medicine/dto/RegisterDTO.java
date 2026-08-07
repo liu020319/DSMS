@@ -20,7 +20,7 @@ public class RegisterDTO {
     @javax.validation.constraints.Email(message = "邮箱格式不正确")
     private String email;
     @NotBlank(message = "角色不能为空")
-    @Pattern(regexp = "ADMIN|ELDER", message = "角色类型不正确")
+    @Pattern(regexp = "ADMIN|GUARDIAN|ELDER", message = "角色类型不正确")
     private String role;
     private Long bindParentId;
 }

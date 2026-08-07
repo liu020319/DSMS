@@ -32,6 +32,10 @@ export function updateUser(data) {
   return request.put('/user/update', data)
 }
 
+export function deleteUser(id) {
+  return request.delete('/user/' + id)
+}
+
 export function resetPassword(id, newPassword) {
   return request.put('/user/reset-password/' + id, { newPassword })
 }

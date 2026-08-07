@@ -40,11 +40,16 @@ main: BEGIN
     RESIGNAL;
   END;
 
-  SELECT COUNT(*) INTO v_exists FROM dsms_demo_seed_history WHERE seed_version = v_seed_version;
+  -- 使用二进制比较，避免旧库 utf8mb4_general_ci 与 MySQL 8.4 默认
+  -- utf8mb4_0900_ai_ci 在字段和存储过程变量比较时触发 1267。
+  SELECT COUNT(*) INTO v_exists
+  FROM dsms_demo_seed_history
+  WHERE BINARY seed_version = BINARY v_seed_version;
   IF v_exists > 0 THEN
     SELECT '演示数据已存在，本次安全跳过；不会重复插入。' AS message,
            record_count, executed_at
-    FROM dsms_demo_seed_history WHERE seed_version = v_seed_version;
+    FROM dsms_demo_seed_history
+    WHERE BINARY seed_version = BINARY v_seed_version;
     LEAVE main;
   END IF;
 
@@ -63,18 +68,14 @@ main: BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '缺少 user_notification 表：请先执行家庭购药业务迁移脚本';
   END IF;
 
-  SELECT user_id INTO v_admin_id
+  -- 演示数据必须落在同一个真实家庭边界中，不能随意拼接两个用户。
+  SELECT user_id, bind_parent_id INTO v_member_id, v_admin_id
   FROM sys_user
-  WHERE role = 'ADMIN' AND status = 1 AND deleted = 0
+  WHERE role = 'ELDER' AND bind_parent_id IS NOT NULL AND status = 1 AND deleted = 0
   ORDER BY user_id LIMIT 1;
 
-  SELECT user_id INTO v_member_id
-  FROM sys_user
-  WHERE role = 'ELDER' AND status = 1 AND deleted = 0
-  ORDER BY CASE WHEN bind_parent_id = v_admin_id THEN 0 ELSE 1 END, user_id LIMIT 1;
-
   IF v_admin_id IS NULL OR v_member_id IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '需要至少一个启用的 ADMIN 和 ELDER 账号后才能生成演示数据';
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '需要至少一个已绑定家庭守护人的 ELDER 账号后才能生成演示数据';
   END IF;
 
   START TRANSACTION;
@@ -109,13 +110,29 @@ main: BEGIN
     status = 1, deleted = 0;
 
   INSERT INTO prescription
-    (user_id, medicine_id, daily_times, dosage_per_time, daily_consumption, days_per_box, take_notes, status, deleted)
+    (user_id, medicine_id, daily_times, dosage_per_time, dosage_unit,
+     daily_consumption, days_per_box, take_notes, take_timing,
+     take_frequency_code, take_periods, status, deleted)
   SELECT v_member_id, m.medicine_id,
-         CASE WHEN MOD(m.medicine_id, 5) = 0 THEN 2 ELSE 1 END,
+         CASE WHEN MOD(m.medicine_id, 4) = 0 THEN 3 ELSE 1 END,
          1,
-         CASE WHEN MOD(m.medicine_id, 5) = 0 THEN 2 ELSE 1 END,
-         FLOOR(m.unit_per_box / CASE WHEN MOD(m.medicine_id, 5) = 0 THEN 2 ELSE 1 END),
-         CONCAT('企业演示方案：', CASE WHEN MOD(m.medicine_id, 5) = 0 THEN '早晚各一次' ELSE '每日一次' END),
+         '片',
+         CASE WHEN MOD(m.medicine_id, 4) = 0 THEN 3 ELSE 1 END,
+         FLOOR(m.unit_per_box / CASE WHEN MOD(m.medicine_id, 4) = 0 THEN 3 ELSE 1 END),
+         CONCAT('企业演示方案：', CASE MOD(m.medicine_id, 4)
+           WHEN 0 THEN '早中晚各一次' WHEN 1 THEN '晨间一次'
+           WHEN 2 THEN '午间一次' ELSE '晚间一次' END),
+         CASE MOD(m.medicine_id, 4)
+           WHEN 0 THEN '早中晚' WHEN 1 THEN '晨间'
+           WHEN 2 THEN '午间' ELSE '晚间' END,
+         CASE MOD(m.medicine_id, 4)
+           WHEN 0 THEN 'DAILY_3_FULL_DAY' WHEN 1 THEN 'DAILY_1_MORNING'
+           WHEN 2 THEN 'DAILY_1_NOON' ELSE 'DAILY_1_EVENING' END,
+         CASE MOD(m.medicine_id, 4)
+           WHEN 0 THEN '["MORNING","NOON","EVENING"]'
+           WHEN 1 THEN '["MORNING"]'
+           WHEN 2 THEN '["NOON"]'
+           ELSE '["EVENING"]' END,
          1, 0
   FROM medicine m
   WHERE m.approval_number LIKE '国药准字H9000%'
@@ -211,6 +228,26 @@ DELIMITER ;
 
 CALL dsms_seed_enterprise_demo();
 DROP PROCEDURE IF EXISTS dsms_seed_enterprise_demo;
+
+-- 即使 V1 以前执行过，也补齐晨间、午间、晚间三个时段，重复执行不会重复造数据。
+UPDATE prescription p
+JOIN medicine m ON m.medicine_id = p.medicine_id
+SET p.daily_times = CASE WHEN MOD(m.medicine_id, 4) = 0 THEN 3 ELSE 1 END,
+    p.daily_consumption = CASE WHEN MOD(m.medicine_id, 4) = 0 THEN 3 ELSE 1 END,
+    p.days_per_box = FLOOR(m.unit_per_box / CASE WHEN MOD(m.medicine_id, 4) = 0 THEN 3 ELSE 1 END),
+    p.dosage_unit = '片',
+    p.take_timing = CASE MOD(m.medicine_id, 4)
+      WHEN 0 THEN '早中晚' WHEN 1 THEN '晨间' WHEN 2 THEN '午间' ELSE '晚间' END,
+    p.take_frequency_code = CASE MOD(m.medicine_id, 4)
+      WHEN 0 THEN 'DAILY_3_FULL_DAY' WHEN 1 THEN 'DAILY_1_MORNING'
+      WHEN 2 THEN 'DAILY_1_NOON' ELSE 'DAILY_1_EVENING' END,
+    p.take_periods = CASE MOD(m.medicine_id, 4)
+      WHEN 0 THEN '["MORNING","NOON","EVENING"]'
+      WHEN 1 THEN '["MORNING"]'
+      WHEN 2 THEN '["NOON"]'
+      ELSE '["EVENING"]' END
+WHERE m.approval_number LIKE '国药准字H9000%'
+  AND p.deleted = 0;
 
 SELECT COUNT(*) AS all_purchase_records FROM purchase_record WHERE deleted = 0;
 SELECT COUNT(*) AS all_demo_medicines FROM medicine WHERE deleted = 0 AND approval_number LIKE '国药准字H9000%';

@@ -79,11 +79,11 @@ const defaultOpened = ['medication', 'fulfillment']
 .brand-pulse { position: absolute; right: -2px; top: -2px; width: 9px; height: 9px; border-radius: 50%; background: #93f5c9; border: 2px solid #102d35; }
 .brand-copy { min-width: 0; white-space: nowrap; }.brand-copy strong,.brand-copy span { display: block; }.brand-copy strong { color: #fff; font-size: 18px; letter-spacing: 1px; }.brand-copy span { margin-top: 4px; color: #83a3aa; font-size: 10px; letter-spacing: 1px; }
 .workspace-label { padding: 18px 20px 7px; color: #658990; font-size: 11px; letter-spacing: 2px; }
-.el-menu { border: 0; background: transparent; padding: 0 10px 92px; }
+.el-menu { --el-menu-bg-color: transparent; --el-menu-hover-bg-color: rgba(255,255,255,.065); border: 0; background: transparent !important; padding: 0 10px 92px; }
 :deep(.el-menu-item), :deep(.el-sub-menu__title) { height: 46px; margin: 3px 0; border-radius: 11px; color: #aac0c4; }
 :deep(.el-menu-item:hover), :deep(.el-sub-menu__title:hover) { color: #fff; background: rgba(255,255,255,.065); }
 :deep(.el-menu-item.is-active) { color: #fff; background: linear-gradient(135deg, rgba(43,197,138,.96), rgba(43,141,162,.92)); box-shadow: 0 8px 22px rgba(11,34,42,.25); }
-:deep(.el-sub-menu .el-menu) { padding: 2px 0 4px 10px; }
+:deep(.el-sub-menu .el-menu) { margin: 3px 0 8px; padding: 5px 4px 6px 10px; border: 1px solid rgba(255,255,255,.045); border-radius: 12px; background: rgba(255,255,255,.035) !important; box-shadow: inset 0 1px rgba(255,255,255,.025); }
 :deep(.el-sub-menu .el-menu-item) { min-width: 0; height: 39px; padding-left: 42px !important; font-size: 13px; }
 .nav-badge { margin-left: auto; }
 .nav-footer { position: absolute; left: 14px; right: 14px; bottom: 16px; display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 12px; color: #bfd0d3; background: rgba(255,255,255,.035); }.nav-footer strong,.nav-footer small { display: block; }.nav-footer strong { font-size: 12px; }.nav-footer small { margin-top: 3px; color: #6f9299; font-size: 10px; }.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #47d99a; box-shadow: 0 0 0 5px rgba(71,217,154,.1); }

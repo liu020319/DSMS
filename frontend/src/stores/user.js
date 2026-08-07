@@ -23,6 +23,10 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function isAdmin() {
+    return role.value === 'ADMIN' || role.value === 'GUARDIAN'
+  }
+
+  function isSystemAdmin() {
     return role.value === 'ADMIN'
   }
 
@@ -30,5 +34,5 @@ export const useUserStore = defineStore('user', () => {
     return role.value === 'ELDER'
   }
 
-  return { token, userInfo, role, setLogin, logout, isAdmin, isElder }
+  return { token, userInfo, role, setLogin, logout, isAdmin, isSystemAdmin, isElder }
 })

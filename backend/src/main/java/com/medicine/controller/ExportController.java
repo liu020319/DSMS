@@ -69,7 +69,9 @@ public class ExportController {
         accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("用户数据", "UTF-8") + ".xlsx");
-        List<SysUser> list = sysUserService.list();
+        List<SysUser> list = accessControl.isSystemAdmin(request)
+                ? sysUserService.list()
+                : sysUserService.getFamilyUsers((Long) request.getAttribute("userId"));
         List<UserExportVO> exportList = new ArrayList<>();
         for (SysUser u : list) {
             UserExportVO vo = new UserExportVO();
@@ -77,7 +79,7 @@ public class ExportController {
             vo.setUsername(u.getUsername());
             vo.setRealName(u.getRealName());
             vo.setPhone(u.getPhone());
-            vo.setRoleText("ADMIN".equals(u.getRole()) ? "子女" : "老人");
+            vo.setRoleText("ADMIN".equals(u.getRole()) ? "平台管理员" : "GUARDIAN".equals(u.getRole()) ? "家庭守护人" : "安心用药成员");
             vo.setStatusText(u.getStatus() == 1 ? "启用" : "禁用");
             exportList.add(vo);
         }
@@ -90,7 +92,8 @@ public class ExportController {
         accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("操作日志", "UTF-8") + ".xlsx");
-        Page<SysLog> page = sysLogService.pageList(1, 10000, null, null);
+        Long auditUserId = accessControl.isSystemAdmin(request) ? null : (Long) request.getAttribute("userId");
+        Page<SysLog> page = sysLogService.pageList(1, 10000, auditUserId, null);
         List<LogExportVO> exportList = new ArrayList<>();
         for (SysLog l : page.getRecords()) {
             LogExportVO vo = new LogExportVO();
@@ -111,7 +114,8 @@ public class ExportController {
         accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + java.net.URLEncoder.encode("购药记录", "UTF-8") + ".xlsx");
-        List<PurchaseRecordVO> list = purchaseRecordService.listForExport(userId);
+        List<Long> allowedUserIds = accessControl.scopedUserIds(request, userId);
+        List<PurchaseRecordVO> list = purchaseRecordService.listForExport(userId, allowedUserIds);
         List<PurchaseExportVO> exportList = new ArrayList<>();
         for (PurchaseRecordVO r : list) {
             PurchaseExportVO vo = new PurchaseExportVO();
@@ -138,13 +142,13 @@ public class ExportController {
         com.alibaba.excel.ExcelWriter writer = com.alibaba.excel.EasyExcel.write(response.getOutputStream()).build();
         try {
             writer.write(exportList, com.alibaba.excel.EasyExcel.writerSheet(0, "购药明细").head(PurchaseExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getYearlyStats(userId), "year"), com.alibaba.excel.EasyExcel.writerSheet(1, "年度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getMonthlyStats(userId), "month"), com.alibaba.excel.EasyExcel.writerSheet(2, "月度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getWeeklyStats(userId), "week"), com.alibaba.excel.EasyExcel.writerSheet(3, "周度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getPlatformStats(userId), "name"), com.alibaba.excel.EasyExcel.writerSheet(4, "平台汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getDailyStats(userId, java.time.LocalDate.now().minusYears(10).toString()), "day"), com.alibaba.excel.EasyExcel.writerSheet(5, "日度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getChannelStats(userId), "name"), com.alibaba.excel.EasyExcel.writerSheet(6, "线上线下汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getTimeBucketStats(userId), "name"), com.alibaba.excel.EasyExcel.writerSheet(7, "购药时段汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getYearlyStats(userId, allowedUserIds), "year"), com.alibaba.excel.EasyExcel.writerSheet(1, "年度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getMonthlyStats(userId, allowedUserIds), "month"), com.alibaba.excel.EasyExcel.writerSheet(2, "月度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getWeeklyStats(userId, allowedUserIds), "week"), com.alibaba.excel.EasyExcel.writerSheet(3, "周度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getPlatformStats(userId, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(4, "平台汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getDailyStats(userId, java.time.LocalDate.now().minusYears(10).toString(), allowedUserIds), "day"), com.alibaba.excel.EasyExcel.writerSheet(5, "日度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getChannelStats(userId, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(6, "线上线下汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getTimeBucketStats(userId, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(7, "购药时段汇总").head(ExpenseSummaryExportVO.class).build());
         } finally {
             writer.finish();
         }

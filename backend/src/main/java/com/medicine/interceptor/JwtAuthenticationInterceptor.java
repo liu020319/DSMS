@@ -3,6 +3,8 @@ package com.medicine.interceptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medicine.common.Result;
 import com.medicine.util.JwtUtil;
+import com.medicine.entity.SysUser;
+import com.medicine.mapper.SysUserMapper;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,9 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private SysUserMapper sysUserMapper;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -32,9 +37,16 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
                 writeErrorResponse(response, 401, "登录已过期，请重新登录");
                 return false;
             }
-            request.setAttribute("userId", jwtUtil.getUserId(token));
-            request.setAttribute("username", jwtUtil.getUsername(token));
-            request.setAttribute("role", jwtUtil.getRole(token));
+            Long userId = jwtUtil.getUserId(token);
+            SysUser currentUser = sysUserMapper.selectById(userId);
+            if (currentUser == null || !Integer.valueOf(1).equals(currentUser.getStatus())) {
+                writeErrorResponse(response, 401, "账号不存在或已停用，请重新登录");
+                return false;
+            }
+            request.setAttribute("userId", currentUser.getUserId());
+            request.setAttribute("username", currentUser.getUsername());
+            // 每次请求读取数据库中的实时角色，避免角色调整后旧 JWT 继续保留越权权限。
+            request.setAttribute("role", currentUser.getRole());
             return true;
         } catch (Exception e) {
             writeErrorResponse(response, 401, "无效的Token");

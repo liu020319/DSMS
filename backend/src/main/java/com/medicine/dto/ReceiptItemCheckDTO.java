@@ -18,4 +18,7 @@ public class ReceiptItemCheckDTO {
 
     @NotNull(message = "请确认外包装是否完好")
     private Boolean packageIntact;
+
+    @NotNull(message = "请确认药品规格和剂量是否一致")
+    private Boolean specificationConfirmed;
 }

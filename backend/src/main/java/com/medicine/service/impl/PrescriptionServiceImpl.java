@@ -172,10 +172,16 @@ public class PrescriptionServiceImpl extends ServiceImpl<PrescriptionMapper, Pre
     }
 
     @Override
-    public Page<PrescriptionVO> pageList(int current, int size, Long userId, Long medicineId, String realName) {
+    public Page<PrescriptionVO> pageList(int current, int size, Long userId, Long medicineId, String realName, List<Long> allowedUserIds) {
         Page<Prescription> page = new Page<>(current, size);
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            Page<PrescriptionVO> empty = new Page<>(current, size);
+            empty.setTotal(0);
+            empty.setRecords(new ArrayList<>());
+            return empty;
+        }
         if (realName != null && !realName.trim().isEmpty()) {
-            Page<Prescription> result = baseMapper.selectPageWithRealName(page, userId, medicineId, realName.trim());
+            Page<Prescription> result = baseMapper.selectPageWithRealName(page, userId, medicineId, realName.trim(), allowedUserIds);
             Page<PrescriptionVO> voPage = new Page<>(current, size);
             voPage.setTotal(result.getTotal());
             voPage.setRecords(convertToVOList(result.getRecords()));
@@ -188,6 +194,7 @@ public class PrescriptionServiceImpl extends ServiceImpl<PrescriptionMapper, Pre
         if (medicineId != null) {
             wrapper.eq(Prescription::getMedicineId, medicineId);
         }
+        if (allowedUserIds != null) wrapper.in(Prescription::getUserId, allowedUserIds);
         wrapper.orderByDesc(Prescription::getCreateTime);
         page(page, wrapper);
         Page<PrescriptionVO> voPage = new Page<>(current, size);

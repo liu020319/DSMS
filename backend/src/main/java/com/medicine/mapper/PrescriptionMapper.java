@@ -13,6 +13,7 @@ public interface PrescriptionMapper extends BaseMapper<Prescription> {
             Page<Prescription> page,
             @Param("userId") Long userId,
             @Param("medicineId") Long medicineId,
-            @Param("realName") String realName
+            @Param("realName") String realName,
+            @Param("allowedUserIds") java.util.List<Long> allowedUserIds
     );
 }

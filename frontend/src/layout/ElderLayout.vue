@@ -44,8 +44,10 @@ const mobileNavVisible = ref(false)
 const notificationCount = ref(0)
 const syncViewport = () => { isMobile.value = window.innerWidth <= 900; if (!isMobile.value) mobileNavVisible.value = false }
 const handleLogout = () => { userStore.logout(); router.push('/login') }
-onMounted(async () => { window.addEventListener('resize', syncViewport); try { const res = await getUnreadNotificationCount(); notificationCount.value = res.data || 0 } catch (e) {} })
-onBeforeUnmount(() => window.removeEventListener('resize', syncViewport))
+let notificationTimer = null
+const refreshNotificationCount = async () => { try { const res = await getUnreadNotificationCount(); notificationCount.value = res.data || 0 } catch (e) {} }
+onMounted(async () => { window.addEventListener('resize', syncViewport); window.addEventListener('dsms-notification-read',refreshNotificationCount); await refreshNotificationCount(); notificationTimer=window.setInterval(refreshNotificationCount,30000) })
+onBeforeUnmount(() => { window.removeEventListener('resize', syncViewport); window.removeEventListener('dsms-notification-read',refreshNotificationCount); if(notificationTimer)window.clearInterval(notificationTimer) })
 </script>
 
 <style scoped>

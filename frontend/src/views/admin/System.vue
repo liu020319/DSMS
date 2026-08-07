@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head">
       <div><span>家庭与账号</span><h1>成员和登录安全</h1><p>管理家庭成员、绑定关系、密码重置和账号解锁。</p></div>
-      <el-button type="primary" size="large" @click="handleAddUser"><el-icon><Plus /></el-icon>新增家庭成员</el-button>
+      <el-button type="primary" size="large" @click="handleAddUser"><el-icon><Plus /></el-icon>{{ isSystemAdmin ? '新增平台账号' : '新增家庭成员' }}</el-button>
     </div>
 
     <div class="summary-grid">
@@ -21,12 +21,12 @@
             </el-table-column>
             <el-table-column prop="phone" label="手机号" min-width="130" />
             <el-table-column prop="email" label="通知邮箱" min-width="190"><template #default="{row}">{{ row.email || '未设置' }}</template></el-table-column>
-            <el-table-column label="使用端" width="125"><template #default="{row}"><el-tag :type="row.role==='ADMIN'?'success':'primary'">{{ roleText(row.role) }}</el-tag></template></el-table-column>
+            <el-table-column label="使用端" width="125"><template #default="{row}"><el-tag :type="row.role==='ADMIN'?'danger':row.role==='GUARDIAN'?'success':'primary'">{{ roleText(row.role) }}</el-tag></template></el-table-column>
             <el-table-column label="登录安全" min-width="190">
               <template #default="{row}"><div class="security-state"><el-tag v-if="row.status===0" type="info">已停用</el-tag><el-tag v-else-if="isLocked(row)" type="danger">已临时锁定</el-tag><el-tag v-else type="success">正常</el-tag><small v-if="isLocked(row)">至 {{ row.lockedUntil }}</small><small v-else-if="row.lastLoginTime">最近登录 {{ row.lastLoginTime }}</small><small v-else>尚无登录记录</small></div></template>
             </el-table-column>
-            <el-table-column label="操作" width="260" fixed="right">
-              <template #default="{row}"><el-button size="small" @click="handleEditUser(row)">编辑</el-button><el-button size="small" type="warning" plain @click="handleResetPwd(row)">重置密码</el-button><el-button v-if="isLocked(row)" size="small" type="danger" @click="handleUnlock(row)">解除锁定</el-button></template>
+            <el-table-column label="操作" :width="isMobile?88:330" :fixed="isMobile?false:'right'">
+              <template #default="{row}"><template v-if="!isMobile"><el-button size="small" @click="handleEditUser(row)">编辑</el-button><el-button size="small" type="warning" plain @click="handleResetPwd(row)">重置密码</el-button><el-button v-if="isLocked(row)" size="small" type="danger" @click="handleUnlock(row)">解除锁定</el-button><el-button v-if="isSystemAdmin&&row.role!=='ADMIN'" size="small" type="danger" text @click="handleDelete(row)">删除</el-button></template><el-dropdown v-else trigger="click" @command="command=>handleMobileAction(command,row)"><el-button size="small" type="primary" plain>操作<el-icon><ArrowDown/></el-icon></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">编辑</el-dropdown-item><el-dropdown-item command="reset">重置密码</el-dropdown-item><el-dropdown-item v-if="isLocked(row)" command="unlock">解除锁定</el-dropdown-item><el-dropdown-item v-if="isSystemAdmin&&row.role!=='ADMIN'" command="delete" divided>删除</el-dropdown-item></el-dropdown-menu></template></el-dropdown></template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -44,7 +44,7 @@
       <el-form :model="userForm" label-position="top" size="large">
         <div class="form-grid"><el-form-item label="登录账号"><el-input v-model="userForm.username" :disabled="isEditUser" autocomplete="off" maxlength="50" /></el-form-item><el-form-item label="姓名"><el-input v-model="userForm.realName" maxlength="50" /></el-form-item></div>
         <el-form-item v-if="!isEditUser" label="初始密码"><el-input v-model="userForm.password" type="password" show-password autocomplete="new-password" maxlength="64" placeholder="8到64位，首次登录后建议修改" /></el-form-item>
-        <div class="form-grid"><el-form-item label="手机号"><el-input v-model="userForm.phone" maxlength="20" /></el-form-item><el-form-item label="使用端"><el-select v-model="userForm.role"><el-option label="家庭守护端" value="ADMIN"/><el-option label="安心用药端" value="ELDER"/></el-select></el-form-item></div>
+        <div class="form-grid"><el-form-item label="手机号"><el-input v-model="userForm.phone" maxlength="20" /></el-form-item><el-form-item label="使用端"><el-select v-model="userForm.role" :disabled="!isSystemAdmin||userForm.role==='ADMIN'"><el-option v-if="isSystemAdmin" label="家庭守护端" value="GUARDIAN"/><el-option label="安心用药端" value="ELDER"/></el-select></el-form-item></div>
         <el-form-item label="通知邮箱"><el-input v-model="userForm.email" maxlength="160" placeholder="接收购药申请和异常提醒" /></el-form-item>
         <el-form-item v-if="isEditUser" label="账号状态"><el-switch v-model="userForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="停用" /></el-form-item>
       </el-form>
@@ -58,21 +58,26 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { addUser, bindElder, getEldersByParent, getUserList, resetPassword, unbindElder, unlockUser, updateUser } from '../../api/user'
+import { addUser, bindElder, deleteUser, getEldersByParent, getUserList, resetPassword, unbindElder, unlockUser, updateUser } from '../../api/user'
+import { useUserStore } from '../../stores/user'
+import { useMobile } from '../../composables/useMobile'
 
+const store=useUserStore(),isSystemAdmin=computed(()=>store.userInfo.role==='ADMIN'),isMobile=useMobile()
 const activeTab=ref('user'),userList=ref([]),adminList=ref([]),careList=ref([]),allCareList=ref([]),userDialogVisible=ref(false),bindDialogVisible=ref(false),isEditUser=ref(false),selectedAdmin=ref(null),selectedCareId=ref(null)
-const userForm=ref({username:'',password:'',realName:'',phone:'',email:'',role:'ELDER',status:1})
+const userForm=ref({username:'',password:'',realName:'',phone:'',email:'',role:isSystemAdmin.value?'GUARDIAN':'ELDER',status:1})
 const lockedCount=computed(()=>userList.value.filter(isLocked).length)
 const unboundCareList=computed(()=>allCareList.value.filter(item=>!item.bindParentId||item.bindParentId===selectedAdmin.value?.userId))
-const roleText=role=>role==='ADMIN'?'家庭守护端':'安心用药端'
+const roleText=role=>({ADMIN:'平台管理员',GUARDIAN:'家庭守护端',ELDER:'安心用药端'}[role]||role)
 const isLocked=row=>Boolean(row.lockedUntil&&new Date(row.lockedUntil.replace(' ','T')).getTime()>Date.now())
 
-const loadUsers=async()=>{const res=await getUserList();userList.value=res.data||[];adminList.value=userList.value.filter(u=>u.role==='ADMIN');allCareList.value=userList.value.filter(u=>u.role==='ELDER');if(selectedAdmin.value){selectedAdmin.value=adminList.value.find(u=>u.userId===selectedAdmin.value.userId)||null}}
-const handleAddUser=()=>{isEditUser.value=false;userForm.value={username:'',password:'',realName:'',phone:'',email:'',role:'ELDER',status:1};userDialogVisible.value=true}
+const loadUsers=async()=>{const res=await getUserList();userList.value=res.data||[];adminList.value=userList.value.filter(u=>['ADMIN','GUARDIAN'].includes(u.role));allCareList.value=userList.value.filter(u=>u.role==='ELDER');if(selectedAdmin.value){selectedAdmin.value=adminList.value.find(u=>u.userId===selectedAdmin.value.userId)||null}}
+const handleAddUser=()=>{isEditUser.value=false;userForm.value={username:'',password:'',realName:'',phone:'',email:'',role:isSystemAdmin.value?'GUARDIAN':'ELDER',status:1};userDialogVisible.value=true}
 const handleEditUser=row=>{isEditUser.value=true;userForm.value={userId:row.userId,username:row.username,realName:row.realName,phone:row.phone,email:row.email,role:row.role,status:row.status,bindParentId:row.bindParentId};userDialogVisible.value=true}
 const submitUser=async()=>{if(!userForm.value.username||!userForm.value.realName)return ElMessage.warning('请填写登录账号和姓名');if(!isEditUser.value&&(!userForm.value.password||userForm.value.password.length<8))return ElMessage.warning('请设置8到64位的初始密码');isEditUser.value?await updateUser(userForm.value):await addUser(userForm.value);ElMessage.success('成员资料已保存');userDialogVisible.value=false;loadUsers()}
 const handleResetPwd=async row=>{const{value}=await ElMessageBox.prompt('重置密码后，账号锁定也会自动解除。请输入8到64位的新密码。',`重置 ${row.realName} 的密码`,{inputType:'password',inputPattern:/^.{8,64}$/,inputErrorMessage:'密码长度应为8到64位',confirmButtonText:'确认重置',cancelButtonText:'取消'});await resetPassword(row.userId,value);ElMessage.success('密码已重置，账号锁定已解除');loadUsers()}
 const handleUnlock=async row=>{await ElMessageBox.confirm(`确认解除 ${row.realName} 的登录锁定？`,'解除锁定',{type:'warning'});await unlockUser(row.userId);ElMessage.success('账号已解除锁定');loadUsers()}
+const handleDelete=async row=>{const familyTip=row.role==='GUARDIAN'?'，并同时删除其绑定的安心用药账号':'';await ElMessageBox.confirm(`确认删除 ${row.realName}${familyTip}？历史业务记录会保留用于审计。`,'删除账号',{type:'error',confirmButtonText:'确认删除',cancelButtonText:'取消'});await deleteUser(row.userId);ElMessage.success('账号已删除');await loadUsers()}
+const handleMobileAction=(command,row)=>({edit:()=>handleEditUser(row),reset:()=>handleResetPwd(row),unlock:()=>handleUnlock(row),delete:()=>handleDelete(row)}[command]?.())
 const onAdminSelect=async row=>{selectedAdmin.value=row;if(row){const res=await getEldersByParent(row.userId);careList.value=res.data||[]}}
 const confirmBind=async()=>{if(!selectedAdmin.value||!selectedCareId.value)return ElMessage.warning('请选择需要关联的成员');await bindElder(selectedCareId.value,selectedAdmin.value.userId);ElMessage.success('家庭关联已建立');bindDialogVisible.value=false;selectedCareId.value=null;await loadUsers();onAdminSelect(selectedAdmin.value)}
 const handleUnbind=async row=>{await ElMessageBox.confirm(`解除 ${row.realName} 与 ${selectedAdmin.value.realName} 的家庭关联？`,'解除关联',{type:'warning'});await unbindElder(row.userId);ElMessage.success('关联已解除');await loadUsers();onAdminSelect(selectedAdmin.value)}

@@ -40,7 +40,7 @@
             <el-icon class="arrow"><ArrowRight /></el-icon>
           </button>
 
-          <el-button type="primary" native-type="submit" class="login-button" :loading="loading" :disabled="humanState !== 'verified' || lockRemaining > 0" @click="handleLogin">
+          <el-button type="primary" native-type="submit" class="login-button" :loading="loading" :disabled="lockRemaining > 0" @click="handleLogin">
             {{ lockRemaining > 0 ? `账号锁定中 ${countdownText}` : '安全登录' }}
           </el-button>
         </el-form>
@@ -138,7 +138,7 @@ const handleLogin = async () => {
     const res = await login({ ...loginForm })
     userStore.setLogin(res.data)
     ElMessage.success('登录成功')
-    router.push(res.data.role === 'ADMIN' ? '/' : '/elder')
+    router.push(['ADMIN', 'GUARDIAN'].includes(res.data.role) ? '/' : '/elder')
   } catch (error) {
     loginError.value = error.message || '登录失败，请检查账号和密码'
     if (error.code === 423) startCountdown(error.data?.remainingSeconds)

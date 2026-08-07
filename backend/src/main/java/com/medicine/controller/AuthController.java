@@ -54,7 +54,8 @@ public class AuthController {
 
     @PostMapping("/register")
     public Result<SysUser> register(@Valid @RequestBody RegisterDTO dto, HttpServletRequest request) {
-        accessControl.requireAdmin(request);
+        accessControl.requireSystemAdmin(request);
+        if ("ADMIN".equals(dto.getRole())) return Result.error("平台管理员账号只能通过受控数据库迁移创建");
         SysUser user = sysUserService.register(dto);
         user.setPassword(null);
         return Result.success(user);

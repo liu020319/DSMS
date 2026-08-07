@@ -10,6 +10,7 @@ public class FamilyOrderDTO {
     @NotBlank @Size(max = 100) private String purchasePlatform;
     @NotBlank @Pattern(regexp = "ONLINE|OFFLINE") private String purchaseChannel;
     @NotNull private LocalDateTime orderTime;
+    private LocalDateTime expectedArrivalTime;
     @Size(max = 500) private String screenshotUrl;
     @Size(max = 30) private String carrierCode;
     @Size(max = 60) private String carrierName;

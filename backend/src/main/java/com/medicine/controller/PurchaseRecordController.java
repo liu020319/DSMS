@@ -3,6 +3,7 @@ package com.medicine.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.medicine.common.Result;
 import com.medicine.dto.PurchaseRecordDTO;
+import com.medicine.entity.PurchaseRecord;
 import com.medicine.service.PurchaseRecordService;
 import com.medicine.service.SysLogService;
 import com.medicine.util.AccessControl;
@@ -32,6 +33,7 @@ public class PurchaseRecordController {
     @PostMapping("/add")
     public Result<Void> add(@Valid @RequestBody PurchaseRecordDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        accessControl.requireOwnerOrAdmin(request, dto.getUserId());
         purchaseRecordService.addPurchaseRecord(dto);
         sysLogService.log(getUserId(request), "新增购药记录", "新增购药记录", request.getRemoteAddr());
         return Result.success();
@@ -40,6 +42,9 @@ public class PurchaseRecordController {
     @PutMapping("/update")
     public Result<Void> update(@Valid @RequestBody PurchaseRecordDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PurchaseRecord existing = purchaseRecordService.getById(dto.getPurchaseId());
+        if (existing != null) accessControl.requireOwnerOrAdmin(request, existing.getUserId());
+        accessControl.requireOwnerOrAdmin(request, dto.getUserId());
         purchaseRecordService.updatePurchaseRecord(dto);
         sysLogService.log(getUserId(request), "修改购药记录", "修改购药记录，编号: " + dto.getPurchaseId(), request.getRemoteAddr());
         return Result.success();
@@ -48,6 +53,8 @@ public class PurchaseRecordController {
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PurchaseRecord existing = purchaseRecordService.getById(id);
+        if (existing != null) accessControl.requireOwnerOrAdmin(request, existing.getUserId());
         purchaseRecordService.deletePurchaseRecord(id);
         sysLogService.log(getUserId(request), "删除购药记录", "删除购药记录，编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -56,6 +63,8 @@ public class PurchaseRecordController {
     @PutMapping("/confirm-receipt/{id}")
     public Result<Void> confirmReceipt(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PurchaseRecord existing = purchaseRecordService.getById(id);
+        if (existing != null) accessControl.requireOwnerOrAdmin(request, existing.getUserId());
         purchaseRecordService.confirmReceipt(id);
         sysLogService.log(getUserId(request), "确认收货", "确认收货，购药记录编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -70,13 +79,14 @@ public class PurchaseRecordController {
             @RequestParam(required = false) String approvalNumber,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(purchaseRecordService.pageList(current, size, userId, prescriptionId, approvalNumber));
+        return Result.success(purchaseRecordService.pageList(current, size, userId, prescriptionId, approvalNumber,
+                accessControl.scopedUserIds(request, userId)));
     }
 
     @GetMapping("/stats/monthly")
     public Result<List<Map<String, Object>>> monthlyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(purchaseRecordService.getMonthlyStats(userId));
+        return Result.success(purchaseRecordService.getMonthlyStats(userId, accessControl.scopedUserIds(request, userId)));
     }
 
     @GetMapping("/stats/daily")
@@ -86,34 +96,34 @@ public class PurchaseRecordController {
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
         String startDate = java.time.LocalDate.now().minusDays(days).toString();
-        return Result.success(purchaseRecordService.getDailyStats(userId, startDate));
+        return Result.success(purchaseRecordService.getDailyStats(userId, startDate, accessControl.scopedUserIds(request, userId)));
     }
 
     @GetMapping("/stats/yearly")
     public Result<List<Map<String, Object>>> yearlyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(purchaseRecordService.getYearlyStats(userId));
+        return Result.success(purchaseRecordService.getYearlyStats(userId, accessControl.scopedUserIds(request, userId)));
     }
 
     @GetMapping("/stats/weekly")
     public Result<List<Map<String, Object>>> weeklyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getWeeklyStats(userId));
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getWeeklyStats(userId, accessControl.scopedUserIds(request, userId)));
     }
     @GetMapping("/stats/platform")
     public Result<List<Map<String, Object>>> platformStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getPlatformStats(userId));
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getPlatformStats(userId, accessControl.scopedUserIds(request, userId)));
     }
     @GetMapping("/stats/channel")
     public Result<List<Map<String, Object>>> channelStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getChannelStats(userId));
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getChannelStats(userId, accessControl.scopedUserIds(request, userId)));
     }
     @GetMapping("/stats/time-bucket")
     public Result<List<Map<String, Object>>> timeBucketStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getTimeBucketStats(userId));
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getTimeBucketStats(userId, accessControl.scopedUserIds(request, userId)));
     }
     @GetMapping("/stats/summary")
     public Result<Map<String, Object>> expenseSummary(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getExpenseSummary(userId));
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getExpenseSummary(userId, accessControl.scopedUserIds(request, userId)));
     }
 
     @GetMapping("/export")
@@ -121,7 +131,7 @@ public class PurchaseRecordController {
         accessControl.requireAdmin(request);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=purchase_export.xlsx");
-        List<PurchaseRecordVO> list = purchaseRecordService.listForExport(userId);
+        List<PurchaseRecordVO> list = purchaseRecordService.listForExport(userId, accessControl.scopedUserIds(request, userId));
         com.alibaba.excel.EasyExcel.write(response.getOutputStream(), PurchaseRecordVO.class)
                 .sheet("购药记录").doWrite(list);
     }

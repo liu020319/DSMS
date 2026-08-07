@@ -27,18 +27,18 @@
 
     <el-card style="margin-bottom: 20px">
       <el-row :gutter="10" align="middle">
-        <el-col :span="5">
+        <el-col :xs="24" :sm="5">
           <el-select v-model="search.userId" placeholder="选择用户" clearable @change="loadData">
             <el-option v-for="u in userList" :key="u.userId" :label="formatUserLabel(u)" :value="u.userId" />
           </el-select>
         </el-col>
-        <el-col :span="5">
+        <el-col :xs="24" :sm="5">
           <el-input v-model="search.approvalNumber" placeholder="国药准字号" clearable />
         </el-col>
-        <el-col :span="3">
+        <el-col :xs="8" :sm="3">
           <el-button type="primary" @click="loadData">查询</el-button>
         </el-col>
-        <el-col :span="11" style="text-align: right">
+        <el-col :xs="16" :sm="11" style="text-align: right">
           <el-button type="success" @click="handleAdd">新增购药记录</el-button>
           <el-button @click="handleExport">Excel导出</el-button>
         </el-col>
@@ -71,11 +71,14 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 88 : 200" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
-            <el-button v-if="row.receiptStatus !== 1 && !row.orderId" size="small" type="success" @click="handleConfirmReceipt(row)">确认收货</el-button>
-            <el-button size="small" :disabled="row.receiptStatus === 1 || !!row.orderId" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" :disabled="row.receiptStatus === 1 || !!row.orderId" @click="handleDelete(row)">删除</el-button>
+            <template v-if="!isMobile">
+              <el-button v-if="row.receiptStatus !== 1 && !row.orderId" size="small" type="success" @click="handleConfirmReceipt(row)">确认收货</el-button>
+              <el-button size="small" :disabled="row.receiptStatus === 1 || !!row.orderId" @click="handleEdit(row)">编辑</el-button>
+              <el-button size="small" type="danger" :disabled="row.receiptStatus === 1 || !!row.orderId" @click="handleDelete(row)">删除</el-button>
+            </template>
+            <el-dropdown v-else trigger="click" @command="command => handleMobileAction(command, row)"><el-button size="small" type="primary" plain>操作<el-icon><ArrowDown /></el-icon></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item v-if="row.receiptStatus!==1&&!row.orderId" command="receipt">确认收货</el-dropdown-item><el-dropdown-item command="edit" :disabled="row.receiptStatus===1||!!row.orderId">编辑</el-dropdown-item><el-dropdown-item command="delete" :disabled="row.receiptStatus===1||!!row.orderId" divided>删除</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -170,11 +173,13 @@ import { getPrescriptionByUserId } from '../../api/prescription'
 import { getUserList } from '../../api/user'
 import { getAdminDashboard, calcBoxes as calcBoxesApi } from '../../api/dashboard'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useMobile } from '../../composables/useMobile'
 import { downloadFile } from '../../utils/download'
 import { useUserStore } from '../../stores/user'
 
 const userStore = useUserStore()
 const tableData = ref([])
+const isMobile = useMobile()
 const userList = ref([])
 const prescriptionList = ref([])
 const warningList = ref([])
@@ -302,6 +307,12 @@ const handleConfirmReceipt = async (row) => {
   loadWarningList()
 }
 
+const handleMobileAction = (command, row) => {
+  if (command === 'receipt') return handleConfirmReceipt(row)
+  if (command === 'edit') return handleEdit(row)
+  if (command === 'delete') return handleDelete(row)
+}
+
 const onUserChange = async (userId) => {
   form.prescriptionId = null
   calcDetail.value = null
@@ -353,3 +364,15 @@ onMounted(async () => {
   loadWarningList()
 })
 </script>
+
+<style scoped>
+@media(max-width:760px){
+  :deep(.el-row){row-gap:10px}
+  :deep(.el-form-item){display:block}
+  :deep(.el-form-item__label){width:auto!important;justify-content:flex-start;margin-bottom:5px}
+  :deep(.el-form-item__content){margin-left:0!important}
+  :deep(.el-steps){overflow-x:auto;justify-content:flex-start}
+  :deep(.el-step){min-width:120px}
+  :deep(.el-pagination){justify-content:center!important;flex-wrap:wrap;gap:5px}
+}
+</style>

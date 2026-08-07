@@ -6,7 +6,7 @@
         <h1>药品主数据中心</h1>
         <p>统一维护批准文号、规格、生产企业和价格基准，并追踪关联方案、库存风险与购药历史。</p>
       </div>
-      <div class="hero-actions">
+      <div v-if="isSystemAdmin" class="hero-actions">
         <el-button @click="handleExport"><el-icon><Download /></el-icon>导出档案</el-button>
         <el-button type="primary" @click="handleAdd"><el-icon><Plus /></el-icon>新建药品档案</el-button>
       </div>
@@ -31,14 +31,14 @@
         <div class="view-hint"><span></span>点击药品名或批准文号查看完整业务画像</div>
       </div>
 
-      <div v-if="selectedRows.length" class="batch-bar">
+      <div v-if="isSystemAdmin && selectedRows.length" class="batch-bar">
         <b>已选择 {{ selectedRows.length }} 项</b><span>可对选中档案执行批量状态操作</span>
         <el-button type="success" size="small" @click="handleBatchEnable">批量启用</el-button>
         <el-button type="danger" plain size="small" @click="handleBatchDisable">批量停用</el-button>
       </div>
 
       <el-table v-loading="loading" :data="tableData" class="medicine-table" @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="48" />
+        <el-table-column v-if="isSystemAdmin" type="selection" width="48" />
         <el-table-column label="药品档案" min-width="230">
           <template #default="{ row }">
             <button class="medicine-cell" @click="openProfile(row)">
@@ -54,10 +54,10 @@
         <el-table-column prop="manufacturer" label="生产企业" min-width="190" show-overflow-tooltip />
         <el-table-column label="参考价" width="110" align="right"><template #default="{ row }"><strong class="price">¥{{ money(row.referencePrice) }}</strong></template></el-table-column>
         <el-table-column label="档案状态" width="108" align="center"><template #default="{ row }"><span class="status-pill" :class="row.status === 1 ? 'enabled' : 'disabled'"><i></i>{{ row.status === 1 ? '启用中' : '已停用' }}</span></template></el-table-column>
-        <el-table-column label="操作" width="138" fixed="right" align="center">
+        <el-table-column label="操作" :width="viewportWidth<=760?92:138" :fixed="viewportWidth<=760?false:'right'" align="center">
           <template #default="{ row }">
             <el-button link type="primary" @click="openProfile(row)">查看</el-button>
-            <el-dropdown trigger="click" @command="command => handleRowCommand(command, row)">
+            <el-dropdown v-if="isSystemAdmin" trigger="click" @command="command => handleRowCommand(command, row)">
               <el-button link>更多<el-icon><ArrowDown /></el-icon></el-button>
               <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">编辑档案</el-dropdown-item><el-dropdown-item command="toggle">{{ row.status === 1 ? '停用药品' : '启用药品' }}</el-dropdown-item><el-dropdown-item command="delete" divided>删除档案</el-dropdown-item></el-dropdown-menu></template>
             </el-dropdown>
@@ -112,7 +112,7 @@
             </el-tab-pane>
           </el-tabs>
 
-          <footer class="profile-footer"><el-button @click="drawerVisible = false">关闭</el-button><el-button type="primary" @click="editFromDrawer">编辑药品档案</el-button></footer>
+          <footer class="profile-footer"><el-button @click="drawerVisible = false">关闭</el-button><el-button v-if="isSystemAdmin" type="primary" @click="editFromDrawer">编辑药品档案</el-button></footer>
         </template>
       </div>
     </el-drawer>
@@ -143,11 +143,14 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getMedicinePage, getMedicineOverview, getMedicineProfile, addMedicine, updateMedicine, disableMedicine, deleteMedicine } from '../../api/medicine'
+import { useUserStore } from '../../stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { downloadFile } from '../../utils/download'
 import ProtectedImage from '../../components/ProtectedImage.vue'
 
 const route = useRoute()
+const userStore = useUserStore()
+const isSystemAdmin = computed(() => userStore.userInfo.role === 'ADMIN')
 const tableData = ref([])
 const summary = ref({})
 const profile = ref({})

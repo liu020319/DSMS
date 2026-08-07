@@ -54,7 +54,8 @@ public class NotificationService {
             SysUser user = userMapper.selectById(n.getRecipientId());
             String recipient = user != null && user.getEmail() != null && !user.getEmail().trim().isEmpty()
                     ? user.getEmail().trim()
-                    : (user != null && "ADMIN".equals(user.getRole()) ? defaultRecipient : null);
+                    : (user != null && ("ADMIN".equals(user.getRole()) || "GUARDIAN".equals(user.getRole()))
+                    ? defaultRecipient : null);
             if (mailSender == null || mailFrom == null || mailFrom.trim().isEmpty()
                     || recipient == null || recipient.trim().isEmpty()) {
                 n.setEmailStatus("SKIPPED");

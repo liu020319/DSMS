@@ -29,7 +29,7 @@ public class FamilyCareController {
     @PostMapping("/order")
     public Result<FamilyPurchaseOrder> createOrder(@Valid @RequestBody FamilyOrderDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(familyCareService.createOrder(dto, userId(request)));
+        return Result.success(familyCareService.createOrder(dto, userId(request), accessControl.isSystemAdmin(request)));
     }
 
     @GetMapping("/orders")
@@ -39,7 +39,8 @@ public class FamilyCareController {
             return Result.success(familyCareService.listOrders(elderId, null));
         }
         accessControl.requireAdmin(request);
-        return Result.success(familyCareService.listOrders(elderId, userId(request)));
+        return Result.success(familyCareService.listOrders(elderId,
+                accessControl.isSystemAdmin(request) ? null : userId(request)));
     }
 
     @GetMapping("/order/{id}")
@@ -47,14 +48,17 @@ public class FamilyCareController {
         Map<String, Object> result = familyCareService.orderDetail(id);
         FamilyPurchaseOrder order = (FamilyPurchaseOrder) result.get("order");
         Long current = userId(request);
-        if (!current.equals(order.getElderId()) && !current.equals(order.getParentId())) throw new BusinessException(403, "无权查看该订单");
+        if (!accessControl.isSystemAdmin(request)
+                && !current.equals(order.getElderId()) && !current.equals(order.getParentId())) {
+            throw new BusinessException(403, "无权查看该订单");
+        }
         return Result.success(result);
     }
 
     @PostMapping("/order/{id}/logistics")
     public Result<Void> updateLogistics(@PathVariable("id") Long id, @Valid @RequestBody LogisticsUpdateDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        familyCareService.updateLogistics(id, dto, userId(request));
+        familyCareService.updateLogistics(id, dto, userId(request), accessControl.isSystemAdmin(request));
         return Result.success();
     }
 
@@ -69,7 +73,7 @@ public class FamilyCareController {
     @PutMapping("/order/{id}/receipt-reopen")
     public Result<Void> reopenReceipt(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        familyCareService.reopenReceiptVerification(id, userId(request));
+        familyCareService.reopenReceiptVerification(id, userId(request), accessControl.isSystemAdmin(request));
         return Result.success();
     }
 
@@ -86,11 +90,11 @@ public class FamilyCareController {
     public Result<FamilyFundTransaction> addFund(@Valid @RequestBody FundTransactionDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
         if (dto.getAmount().compareTo(BigDecimal.ZERO) == 0) throw new BusinessException("金额不能为0");
-        return Result.success(familyCareService.addFund(dto, userId(request)));
+        return Result.success(familyCareService.addFund(dto, userId(request), accessControl.isSystemAdmin(request)));
     }
 
     @GetMapping("/notifications")
-    public Result<List<UserNotification>> notifications(HttpServletRequest request) {
+    public Result<List<Map<String, Object>>> notifications(HttpServletRequest request) {
         return Result.success(familyCareService.listNotifications(userId(request)));
     }
 

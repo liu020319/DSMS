@@ -122,14 +122,20 @@ const handleLogout = () => { userStore.logout(); router.push('/login') }
 const goCommand = path => { commandVisible.value = false; commandKeyword.value = ''; router.push(path) }
 const handleCreateCommand = command => router.push({ path: `/${command}`, query: { action: 'create', at: Date.now() } })
 const onShortcut = event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); commandVisible.value = !commandVisible.value } }
+let notificationTimer = null
+const refreshHeaderCounts = async () => {
+  try { const res = await getPendingList({ current: 1, size: 1 }); pendingCount.value = res.data.total || 0 } catch (e) {}
+  try { const res = await getUnreadNotificationCount(); notificationCount.value = res.data || 0 } catch (e) {}
+}
 
 onMounted(async () => {
   window.addEventListener('resize', syncViewport)
   window.addEventListener('keydown', onShortcut)
-  try { const res = await getPendingList({ current: 1, size: 1 }); pendingCount.value = res.data.total || 0 } catch (e) {}
-  try { const res = await getUnreadNotificationCount(); notificationCount.value = res.data || 0 } catch (e) {}
+  window.addEventListener('dsms-notification-read', refreshHeaderCounts)
+  await refreshHeaderCounts()
+  notificationTimer = window.setInterval(refreshHeaderCounts, 30000)
 })
-onBeforeUnmount(() => { window.removeEventListener('resize', syncViewport); window.removeEventListener('keydown', onShortcut) })
+onBeforeUnmount(() => { window.removeEventListener('resize', syncViewport); window.removeEventListener('keydown', onShortcut); window.removeEventListener('dsms-notification-read', refreshHeaderCounts); if(notificationTimer)window.clearInterval(notificationTimer) })
 </script>
 
 <style scoped>

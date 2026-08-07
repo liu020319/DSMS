@@ -12,7 +12,7 @@
       <template #header>
         <div class="card-title">
           <span>修改登录密码</span>
-          <el-tag type="success" effect="plain">BCrypt 加密保存</el-tag>
+          <el-tag type="success" effect="plain">密码单向安全存储</el-tag>
         </div>
       </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>

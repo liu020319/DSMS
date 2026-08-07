@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -158,8 +159,14 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
     }
 
     @Override
-    public Page<PurchaseRecordVO> pageList(int current, int size, Long userId, Long prescriptionId, String approvalNumber) {
+    public Page<PurchaseRecordVO> pageList(int current, int size, Long userId, Long prescriptionId, String approvalNumber, List<Long> allowedUserIds) {
         Page<PurchaseRecord> page = new Page<>(current, size);
+        if (allowedUserIds != null && allowedUserIds.isEmpty()) {
+            Page<PurchaseRecordVO> empty = new Page<>(current, size);
+            empty.setTotal(0);
+            empty.setRecords(new ArrayList<>());
+            return empty;
+        }
         LambdaQueryWrapper<PurchaseRecord> wrapper = new LambdaQueryWrapper<>();
         if (userId != null) {
             wrapper.eq(PurchaseRecord::getUserId, userId);
@@ -167,6 +174,7 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (prescriptionId != null) {
             wrapper.eq(PurchaseRecord::getPrescriptionId, prescriptionId);
         }
+        if (allowedUserIds != null) wrapper.in(PurchaseRecord::getUserId, allowedUserIds);
         if (approvalNumber != null && !approvalNumber.isEmpty()) {
             LambdaQueryWrapper<Prescription> pWrapper = new LambdaQueryWrapper<>();
             List<Prescription> prescriptions = prescriptionMapper.selectList(pWrapper);
@@ -194,34 +202,49 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
     }
 
     @Override
-    public List<Map<String, Object>> getMonthlyStats(Long userId) {
-        return baseMapper.selectMonthlyStatsDynamic(userId);
+    public List<Map<String, Object>> getMonthlyStats(Long userId, List<Long> allowedUserIds) {
+        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectMonthlyStatsDynamic(userId, allowedUserIds);
     }
 
     @Override
-    public List<Map<String, Object>> getDailyStats(Long userId, String startDate) {
-        return baseMapper.selectDailyStatsDynamic(userId, startDate);
+    public List<Map<String, Object>> getDailyStats(Long userId, String startDate, List<Long> allowedUserIds) {
+        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectDailyStatsDynamic(userId, startDate, allowedUserIds);
     }
 
     @Override
-    public List<Map<String, Object>> getYearlyStats(Long userId) {
-        return baseMapper.selectYearlyStatsDynamic(userId);
+    public List<Map<String, Object>> getYearlyStats(Long userId, List<Long> allowedUserIds) {
+        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectYearlyStatsDynamic(userId, allowedUserIds);
     }
 
-    @Override public List<Map<String, Object>> getWeeklyStats(Long userId) { return baseMapper.selectWeeklyStatsDynamic(userId); }
-    @Override public List<Map<String, Object>> getPlatformStats(Long userId) { return baseMapper.selectPlatformStatsDynamic(userId); }
-    @Override public List<Map<String, Object>> getChannelStats(Long userId) { return baseMapper.selectChannelStatsDynamic(userId); }
-    @Override public List<Map<String, Object>> getTimeBucketStats(Long userId) { return baseMapper.selectTimeBucketStatsDynamic(userId); }
-    @Override public Map<String, Object> getExpenseSummary(Long userId) { return baseMapper.selectExpenseSummary(userId); }
+    @Override public List<Map<String, Object>> getWeeklyStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectWeeklyStatsDynamic(userId, allowedUserIds); }
+    @Override public List<Map<String, Object>> getPlatformStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectPlatformStatsDynamic(userId, allowedUserIds); }
+    @Override public List<Map<String, Object>> getChannelStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectChannelStatsDynamic(userId, allowedUserIds); }
+    @Override public List<Map<String, Object>> getTimeBucketStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectTimeBucketStatsDynamic(userId, allowedUserIds); }
+    @Override public Map<String, Object> getExpenseSummary(Long userId, List<Long> allowedUserIds) {
+        if (!emptyScope(allowedUserIds)) return baseMapper.selectExpenseSummary(userId, allowedUserIds);
+        Map<String, Object> empty = new LinkedHashMap<>();
+        empty.put("total_amount", BigDecimal.ZERO);
+        empty.put("order_count", 0);
+        empty.put("average_item_amount", BigDecimal.ZERO);
+        empty.put("online_amount", BigDecimal.ZERO);
+        empty.put("offline_amount", BigDecimal.ZERO);
+        return empty;
+    }
 
     @Override
-    public List<PurchaseRecordVO> listForExport(Long userId) {
+    public List<PurchaseRecordVO> listForExport(Long userId, List<Long> allowedUserIds) {
+        if (emptyScope(allowedUserIds)) return new ArrayList<>();
         LambdaQueryWrapper<PurchaseRecord> wrapper = new LambdaQueryWrapper<>();
         if (userId != null) {
             wrapper.eq(PurchaseRecord::getUserId, userId);
         }
+        if (allowedUserIds != null) wrapper.in(PurchaseRecord::getUserId, allowedUserIds);
         wrapper.orderByDesc(PurchaseRecord::getPurchaseDate);
         return convertToVOList(list(wrapper));
+    }
+
+    private boolean emptyScope(List<Long> allowedUserIds) {
+        return allowedUserIds != null && allowedUserIds.isEmpty();
     }
 
     private List<PurchaseRecordVO> convertToVOList(List<PurchaseRecord> records) {

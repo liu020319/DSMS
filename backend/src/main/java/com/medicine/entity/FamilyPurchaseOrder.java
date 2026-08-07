@@ -17,6 +17,7 @@ public class FamilyPurchaseOrder {
     private String purchasePlatform;
     private String purchaseChannel;
     private LocalDateTime orderTime;
+    private LocalDateTime expectedArrivalTime;
     private BigDecimal actualTotal;
     private String screenshotUrl;
     private String carrierCode;

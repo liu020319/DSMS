@@ -9,6 +9,12 @@
         <if test="userId != null">
             AND p.user_id = #{userId}
         </if>
+        <if test="allowedUserIds != null">
+            AND p.user_id IN
+            <foreach collection="allowedUserIds" item="allowedUserId" open="(" separator="," close=")">
+                #{allowedUserId}
+            </foreach>
+        </if>
         <if test="medicineId != null">
             AND p.medicine_id = #{medicineId}
         </if>

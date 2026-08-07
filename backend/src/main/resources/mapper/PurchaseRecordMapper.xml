@@ -10,6 +10,7 @@
         <if test="userId != null">
             AND pr.user_id = #{userId}
         </if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         GROUP BY DATE_FORMAT(pr.purchase_date, '%Y-%m')
         ORDER BY month
     </select>
@@ -21,6 +22,7 @@
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">AND pr.user_id = #{userId}</if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         GROUP BY DATE_FORMAT(pr.purchase_date, '%x-W%v') ORDER BY week
     </select>
 
@@ -31,6 +33,7 @@
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">AND pr.user_id = #{userId}</if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         GROUP BY COALESCE(NULLIF(pr.purchase_platform,''), '未填写') ORDER BY total_amount DESC
     </select>
 
@@ -41,6 +44,7 @@
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">AND pr.user_id = #{userId}</if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         GROUP BY CASE WHEN pr.purchase_channel = 'OFFLINE' THEN '线下' ELSE '线上' END ORDER BY total_amount DESC
     </select>
 
@@ -55,6 +59,7 @@
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">AND pr.user_id = #{userId}</if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         GROUP BY CASE
                  WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 0 AND 5 THEN '凌晨(0-6点)'
                  WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 6 AND 11 THEN '上午(6-12点)'
@@ -70,6 +75,7 @@
                COALESCE(SUM(CASE WHEN pr.purchase_channel = 'OFFLINE' THEN pr.total_price ELSE 0 END),0) as offline_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">AND pr.user_id = #{userId}</if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
     </select>
 
     <select id="selectDailyStatsDynamic" resultType="java.util.Map">
@@ -80,6 +86,7 @@
         <if test="userId != null">
             AND pr.user_id = #{userId}
         </if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         AND pr.purchase_date >= #{startDate}
         GROUP BY DATE_FORMAT(pr.purchase_date, '%Y-%m-%d')
         ORDER BY day
@@ -93,6 +100,7 @@
         <if test="userId != null">
             AND pr.user_id = #{userId}
         </if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
         GROUP BY DATE_FORMAT(pr.purchase_date, '%Y')
         ORDER BY year
     </select>

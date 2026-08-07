@@ -14,7 +14,7 @@ import { useUserStore } from '../stores/user'
 import { addFamilyFund, getFamilyFund } from '../api/family'
 import { getUserList } from '../api/user'
 const localNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
-const store=useUserStore(),isAdmin=store.userInfo.role==='ADMIN',careUsers=ref([]),careUserId=ref(isAdmin?null:store.userInfo.userId),balance=ref(0),records=ref([]),visible=ref(false)
+const store=useUserStore(),isAdmin=['ADMIN','GUARDIAN'].includes(store.userInfo.role),careUsers=ref([]),careUserId=ref(isAdmin?null:store.userInfo.userId),balance=ref(0),records=ref([]),visible=ref(false)
 const form=reactive({amount:100,paymentPlatform:'微信',transactionTime:localNow(),note:''})
 const money=value=>Number(value||0).toFixed(2),typeText=type=>({TRANSFER:'家庭转账',PURCHASE:'购药扣款',ADJUST:'余额调整'}[type]||type)
 const load=async()=>{if(!careUserId.value){records.value=[];balance.value=0;return}const res=await getFamilyFund(careUserId.value);balance.value=res.data.balance;records.value=res.data.records||[]}

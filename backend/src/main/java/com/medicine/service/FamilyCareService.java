@@ -105,11 +105,12 @@ public class FamilyCareService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public FamilyPurchaseOrder createOrder(FamilyOrderDTO dto, Long parentId) {
+    public FamilyPurchaseOrder createOrder(FamilyOrderDTO dto, Long operatorId, boolean systemAdmin) {
         ApprovalTask task = approvalTaskMapper.selectById(dto.getTaskId());
         if (task == null || !"PURCHASE_REQUEST".equals(task.getTaskType())) throw new BusinessException("购药申请不存在");
         if (!"PENDING".equals(task.getStatus())) throw new BusinessException("该申请已经处理");
-        if (!parentId.equals(task.getHandlerId())) throw new BusinessException("无权处理其他家庭的申请");
+        if (!systemAdmin && !operatorId.equals(task.getHandlerId())) throw new BusinessException("无权处理其他家庭的申请");
+        Long parentId = task.getHandlerId();
         if (orderMapper.selectCount(new LambdaQueryWrapper<FamilyPurchaseOrder>().eq(FamilyPurchaseOrder::getTaskId, dto.getTaskId())) > 0) {
             throw new BusinessException("该申请已经生成订单");
         }
@@ -151,6 +152,7 @@ public class FamilyCareService {
         order.setPurchasePlatform(dto.getPurchasePlatform());
         order.setPurchaseChannel(dto.getPurchaseChannel());
         order.setOrderTime(dto.getOrderTime());
+        order.setExpectedArrivalTime(dto.getExpectedArrivalTime());
         order.setActualTotal(actualTotal);
         order.setScreenshotUrl(dto.getScreenshotUrl());
         order.setCarrierCode(dto.getCarrierCode());
@@ -170,7 +172,7 @@ public class FamilyCareService {
             purchase.setQuantityBoxes(itemDto.getQuantityBoxes());
             purchase.setUnitPrice(itemDto.getUnitPrice());
             purchase.setExpiryDate(itemDto.getExpiryDate());
-            purchase.setOperatorId(parentId);
+            purchase.setOperatorId(operatorId);
             purchase.setPurchasePlatform(dto.getPurchasePlatform());
             purchase.setPurchaseChannel(dto.getPurchaseChannel());
             purchase.setOrderId(order.getOrderId());
@@ -226,9 +228,9 @@ public class FamilyCareService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void updateLogistics(Long orderId, LogisticsUpdateDTO dto, Long parentId) {
+    public void updateLogistics(Long orderId, LogisticsUpdateDTO dto, Long operatorId, boolean systemAdmin) {
         FamilyPurchaseOrder order = orderMapper.selectById(orderId);
-        if (order == null || !parentId.equals(order.getParentId())) throw new BusinessException("订单不存在或无权操作");
+        if (order == null || (!systemAdmin && !operatorId.equals(order.getParentId()))) throw new BusinessException("订单不存在或无权操作");
         if ("VERIFIED".equals(order.getReceiptStatus()) && !"DELIVERED".equals(dto.getStatusCode())) {
             throw new BusinessException("订单已完成收货核验，物流状态不能再回退");
         }
@@ -277,7 +279,8 @@ public class FamilyCareService {
             boolean quantityMatched = expectedQuantity == actual.getReceivedQuantityBoxes();
             boolean approvalMatched = normalizeApprovalNumber(expectedApproval).equals(normalizeApprovalNumber(actual.getApprovalNumber()));
             boolean packageMatched = Boolean.TRUE.equals(actual.getPackageIntact());
-            boolean itemMatched = quantityMatched && approvalMatched && packageMatched;
+            boolean specificationMatched = Boolean.TRUE.equals(actual.getSpecificationConfirmed());
+            boolean itemMatched = quantityMatched && approvalMatched && packageMatched && specificationMatched;
             allMatched = allMatched && itemMatched;
 
             JSONObject itemCheck = new JSONObject();
@@ -290,6 +293,8 @@ public class FamilyCareService {
             itemCheck.set("receivedApprovalNumber", actual.getApprovalNumber().trim());
             itemCheck.set("approvalMatched", approvalMatched);
             itemCheck.set("packageIntact", packageMatched);
+            itemCheck.set("expectedSpecification", expected.getStr("specification"));
+            itemCheck.set("specificationConfirmed", specificationMatched);
             itemCheck.set("matched", itemMatched);
             checkItems.add(itemCheck);
 
@@ -298,6 +303,7 @@ public class FamilyCareService {
                 if (!quantityMatched) itemProblems.add("数量不符");
                 if (!approvalMatched) itemProblems.add("国药准字号不符");
                 if (!packageMatched) itemProblems.add("包装破损");
+                if (!specificationMatched) itemProblems.add("规格或剂量不符");
                 problems.add(expected.getStr("medicineName") + "：" + String.join("、", itemProblems));
             }
         }
@@ -335,9 +341,9 @@ public class FamilyCareService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void reopenReceiptVerification(Long orderId, Long parentId) {
+    public void reopenReceiptVerification(Long orderId, Long operatorId, boolean systemAdmin) {
         FamilyPurchaseOrder order = orderMapper.selectById(orderId);
-        if (order == null || !parentId.equals(order.getParentId())) throw new BusinessException("订单不存在或无权操作");
+        if (order == null || (!systemAdmin && !operatorId.equals(order.getParentId()))) throw new BusinessException("订单不存在或无权操作");
         if (!"EXCEPTION".equals(order.getReceiptStatus())) throw new BusinessException("只有收货异常订单可以重新开启核验");
         order.setReceiptStatus("PENDING");
         orderMapper.updateById(order);
@@ -355,9 +361,13 @@ public class FamilyCareService {
                 .eq(FamilyFundTransaction::getElderId, elderId).orderByDesc(FamilyFundTransaction::getTransactionTime));
     }
 
-    public FamilyFundTransaction addFund(FundTransactionDTO dto, Long parentId) {
+    public FamilyFundTransaction addFund(FundTransactionDTO dto, Long operatorId, boolean systemAdmin) {
         SysUser elder = userMapper.selectById(dto.getElderId());
-        if (elder == null || !parentId.equals(elder.getBindParentId())) throw new BusinessException("老人账号不存在或未绑定当前子女");
+        if (elder == null || elder.getBindParentId() == null
+                || (!systemAdmin && !operatorId.equals(elder.getBindParentId()))) {
+            throw new BusinessException("安心用药账号不存在或未绑定当前家庭守护人");
+        }
+        Long parentId = elder.getBindParentId();
         if (!"TRANSFER".equals(dto.getTransactionType()) && !"ADJUST".equals(dto.getTransactionType())) throw new BusinessException("仅允许登记转账或余额调整");
         FamilyFundTransaction item = new FamilyFundTransaction();
         item.setElderId(dto.getElderId()); item.setParentId(parentId); item.setTransactionType(dto.getTransactionType());
@@ -368,8 +378,87 @@ public class FamilyCareService {
         return item;
     }
 
-    public List<UserNotification> listNotifications(Long recipientId) {
-        return notificationMapper.selectList(new LambdaQueryWrapper<UserNotification>().eq(UserNotification::getRecipientId, recipientId).orderByDesc(UserNotification::getCreateTime));
+    public List<Map<String, Object>> listNotifications(Long recipientId) {
+        List<UserNotification> notifications = notificationMapper.selectList(
+                new LambdaQueryWrapper<UserNotification>()
+                        .eq(UserNotification::getRecipientId, recipientId)
+                        .orderByDesc(UserNotification::getCreateTime));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (UserNotification notification : notifications) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("notificationId", notification.getNotificationId());
+            item.put("recipientId", notification.getRecipientId());
+            item.put("title", notification.getTitle());
+            item.put("content", notification.getContent());
+            item.put("bizType", notification.getBizType());
+            item.put("bizId", notification.getBizId());
+            item.put("readStatus", notification.getReadStatus());
+            item.put("emailStatus", notification.getEmailStatus());
+            item.put("createTime", notification.getCreateTime());
+            item.put("readTime", notification.getReadTime());
+            enrichBusinessProgress(item, notification);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private void enrichBusinessProgress(Map<String, Object> target, UserNotification notification) {
+        String status = notification.getReadStatus() != null && notification.getReadStatus() == 1
+                ? "READ" : "UNREAD";
+        String text = "READ".equals(status) ? "已读" : "未读";
+        String type = "READ".equals(status) ? "info" : "danger";
+
+        if ("PURCHASE_REQUEST".equals(notification.getBizType()) && notification.getBizId() != null) {
+            ApprovalTask task = approvalTaskMapper.selectById(notification.getBizId());
+            if (task != null && "PENDING".equals(task.getStatus())) {
+                status = "READ".equals(status) ? "READ_PENDING" : "UNREAD_PENDING";
+                text = "READ_PENDING".equals(status) ? "已读待处理" : "未读待处理";
+                type = "warning";
+            } else if (task != null && "REJECTED".equals(task.getStatus())) {
+                status = "REJECTED"; text = "已驳回"; type = "danger";
+            } else if (task != null && "APPROVED".equals(task.getStatus())) {
+                FamilyPurchaseOrder order = orderMapper.selectOne(new LambdaQueryWrapper<FamilyPurchaseOrder>()
+                        .eq(FamilyPurchaseOrder::getTaskId, task.getTaskId()).last("LIMIT 1"));
+                if (order == null) {
+                    status = "APPROVED"; text = "已审批"; type = "success";
+                } else {
+                    applyOrderProgress(target, order);
+                    return;
+                }
+            }
+        } else if (("FAMILY_ORDER".equals(notification.getBizType())
+                || "RECEIPT_EXCEPTION".equals(notification.getBizType())) && notification.getBizId() != null) {
+            FamilyPurchaseOrder order = orderMapper.selectById(notification.getBizId());
+            if (order != null) {
+                applyOrderProgress(target, order);
+                return;
+            }
+        }
+        target.put("bizStatus", status);
+        target.put("bizStatusText", text);
+        target.put("bizStatusType", type);
+    }
+
+    private void applyOrderProgress(Map<String, Object> target, FamilyPurchaseOrder order) {
+        String status;
+        String text;
+        String type;
+        if ("VERIFIED".equals(order.getReceiptStatus())) {
+            status = "COMPLETED"; text = "已完成"; type = "success";
+        } else if ("EXCEPTION".equals(order.getReceiptStatus())) {
+            status = "RECEIPT_EXCEPTION"; text = "收货异常"; type = "danger";
+        } else if ("DELIVERED".equals(order.getLogisticsStatus())) {
+            status = "AWAITING_RECEIPT"; text = "待收货核验"; type = "warning";
+        } else if ("IN_TRANSIT".equals(order.getLogisticsStatus())
+                || "OUT_FOR_DELIVERY".equals(order.getLogisticsStatus())
+                || "PICKED_UP".equals(order.getLogisticsStatus())) {
+            status = "IN_TRANSIT"; text = "配送中"; type = "primary";
+        } else {
+            status = "ORDERED"; text = "已购买"; type = "primary";
+        }
+        target.put("bizStatus", status);
+        target.put("bizStatusText", text);
+        target.put("bizStatusType", type);
     }
 
     public long unreadCount(Long recipientId) {

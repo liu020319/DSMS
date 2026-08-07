@@ -1,0 +1,1 @@
+import{m as o,z as r,r as s}from"./vue-core-7ece5b19.js";function d(e=760){const n=s(window.innerWidth<=e),i=()=>{n.value=window.innerWidth<=e};return o(()=>window.addEventListener("resize",i,{passive:!0})),r(()=>window.removeEventListener("resize",i)),n}export{d as u};

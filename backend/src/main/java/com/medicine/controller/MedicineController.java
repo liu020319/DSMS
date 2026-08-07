@@ -31,7 +31,7 @@ public class MedicineController {
 
     @PostMapping("/add")
     public Result<Void> add(@Valid @RequestBody MedicineDTO dto, HttpServletRequest request) {
-        accessControl.requireAdmin(request);
+        accessControl.requireSystemAdmin(request);
         medicineService.addMedicine(dto);
         sysLogService.log(getUserId(request), "新增药品", "新增药品: " + dto.getMedicineName(), request.getRemoteAddr());
         return Result.success();
@@ -39,7 +39,7 @@ public class MedicineController {
 
     @PutMapping("/update")
     public Result<Void> update(@Valid @RequestBody MedicineDTO dto, HttpServletRequest request) {
-        accessControl.requireAdmin(request);
+        accessControl.requireSystemAdmin(request);
         medicineService.updateMedicine(dto);
         sysLogService.log(getUserId(request), "修改药品", "修改药品: " + dto.getMedicineName(), request.getRemoteAddr());
         return Result.success();
@@ -47,7 +47,7 @@ public class MedicineController {
 
     @PutMapping("/disable/{id}")
     public Result<Void> disable(@PathVariable("id") Long id, HttpServletRequest request) {
-        accessControl.requireAdmin(request);
+        accessControl.requireSystemAdmin(request);
         medicineService.disableMedicine(id);
         sysLogService.log(getUserId(request), "禁用启用药品", "禁用/启用药品，编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -55,7 +55,7 @@ public class MedicineController {
 
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable("id") Long id, HttpServletRequest request) {
-        accessControl.requireAdmin(request);
+        accessControl.requireSystemAdmin(request);
         medicineService.deleteMedicine(id);
         sysLogService.log(getUserId(request), "删除药品", "删除药品，编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -82,6 +82,16 @@ public class MedicineController {
     @GetMapping("/{id}/profile")
     public Result<Map<String, Object>> profile(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        if (!accessControl.isSystemAdmin(request)) {
+            Medicine medicine = medicineService.getById(id);
+            if (medicine == null) return Result.error("药品不存在");
+            Map<String, Object> basic = new java.util.LinkedHashMap<>();
+            basic.put("medicine", medicine);
+            basic.put("stats", java.util.Collections.emptyMap());
+            basic.put("relatedUsers", java.util.Collections.emptyList());
+            basic.put("recentPurchases", java.util.Collections.emptyList());
+            return Result.success(basic);
+        }
         return Result.success(medicineService.getProfile(id));
     }
 

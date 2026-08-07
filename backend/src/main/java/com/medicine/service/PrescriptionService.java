@@ -10,7 +10,7 @@ public interface PrescriptionService extends IService<Prescription> {
     void updatePrescription(com.medicine.dto.PrescriptionDTO dto, String changeReason);
     void stopPrescription(Long prescriptionId);
     void enablePrescription(Long prescriptionId);
-    com.baomidou.mybatisplus.extension.plugins.pagination.Page<PrescriptionVO> pageList(int current, int size, Long userId, Long medicineId, String realName);
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<PrescriptionVO> pageList(int current, int size, Long userId, Long medicineId, String realName, List<Long> allowedUserIds);
     List<PrescriptionVO> listByUserId(Long userId);
     PrescriptionVO getDetail(Long prescriptionId);
     List<PrescriptionVO> getHistory(Long prescriptionId);

@@ -11,4 +11,6 @@ public interface SysUserService extends IService<SysUser> {
     void unlockAccount(Long userId);
     void changePassword(Long userId, String currentPassword, String newPassword);
     java.util.List<SysUser> getElderByParentId(Long parentId);
+    java.util.List<SysUser> getFamilyUsers(Long guardianId);
+    void deleteUserOrFamily(Long userId);
 }
