@@ -53,7 +53,11 @@ public class StockDeductionServiceImpl extends ServiceImpl<StockMapper, Stock> i
 
         // 过期药品拦截：已过期的药品不参与任何扣减计算
         if (stock.getExpiryDate() != null && stock.getExpiryDate().isBefore(LocalDate.now())) {
-            log.info("药品已过期，跳过扣减: stockId={}, expiryDate={}", stockId, stock.getExpiryDate());
+            stock.setTotalRemainingUnits(0);
+            stock.setRemainingDays(0);
+            stock.setLastCalcTime(LocalDateTime.now());
+            updateById(stock);
+            log.info("药品已过期，已清零库存: stockId={}, expiryDate={}", stockId, stock.getExpiryDate());
             return null;
         }
 

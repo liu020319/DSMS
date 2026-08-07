@@ -95,6 +95,27 @@ public class PurchaseRecordController {
         return Result.success(purchaseRecordService.getYearlyStats(userId));
     }
 
+    @GetMapping("/stats/weekly")
+    public Result<List<Map<String, Object>>> weeklyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getWeeklyStats(userId));
+    }
+    @GetMapping("/stats/platform")
+    public Result<List<Map<String, Object>>> platformStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getPlatformStats(userId));
+    }
+    @GetMapping("/stats/channel")
+    public Result<List<Map<String, Object>>> channelStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getChannelStats(userId));
+    }
+    @GetMapping("/stats/time-bucket")
+    public Result<List<Map<String, Object>>> timeBucketStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getTimeBucketStats(userId));
+    }
+    @GetMapping("/stats/summary")
+    public Result<Map<String, Object>> expenseSummary(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getExpenseSummary(userId));
+    }
+
     @GetMapping("/export")
     public void export(@RequestParam(required = false) Long userId, HttpServletResponse response, HttpServletRequest request) throws Exception {
         accessControl.requireAdmin(request);

@@ -13,9 +13,13 @@ public class SysUser {
     private String password;
     private String realName;
     private String phone;
+    private String email;
     private String role;
     private Long bindParentId;
     private Integer status;
+    private Integer failedLoginAttempts;
+    private LocalDateTime lockedUntil;
+    private LocalDateTime lastLoginTime;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

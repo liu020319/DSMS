@@ -67,15 +67,15 @@
         <el-table-column label="收货状态" width="120">
           <template #default="{ row }">
             <el-tag :type="row.receiptStatus === 1 ? 'success' : 'warning'" size="small">
-              {{ row.receiptStatus === 1 ? '已确认收货' : '已下单未收货' }}
+              {{ row.receiptStatus === 1 ? '已确认收货' : row.orderId ? '等待收货核验' : '已下单未收货' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.receiptStatus !== 1" size="small" type="success" @click="handleConfirmReceipt(row)">确认收货</el-button>
-            <el-button size="small" :disabled="row.receiptStatus === 1" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" :disabled="row.receiptStatus === 1" @click="handleDelete(row)">删除</el-button>
+            <el-button v-if="row.receiptStatus !== 1 && !row.orderId" size="small" type="success" @click="handleConfirmReceipt(row)">确认收货</el-button>
+            <el-button size="small" :disabled="row.receiptStatus === 1 || !!row.orderId" @click="handleEdit(row)">编辑</el-button>
+            <el-button size="small" type="danger" :disabled="row.receiptStatus === 1 || !!row.orderId" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

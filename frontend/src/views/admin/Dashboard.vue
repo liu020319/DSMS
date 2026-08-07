@@ -1,25 +1,25 @@
 <template>
   <div>
     <el-row :gutter="20" style="margin-bottom: 20px">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" style="border-left: 4px solid #409EFF; cursor: pointer" @click="$router.push('/prescription')">
           <div style="font-size: 14px; color: #999">在用药品数</div>
           <div style="font-size: 32px; font-weight: bold; color: #409EFF; margin-top: 8px">{{ dashboard.activePrescriptions || 0 }}</div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" style="border-left: 4px solid #E6A23C; cursor: pointer" @click="scrollToWarning">
           <div style="font-size: 14px; color: #999">库存预警</div>
           <div style="font-size: 32px; font-weight: bold; color: #E6A23C; margin-top: 8px">{{ dashboard.warningCount || 0 }}</div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" style="border-left: 4px solid #F56C6C; cursor: pointer" @click="scrollToExpiring">
           <div style="font-size: 14px; color: #999">临期药品</div>
           <div style="font-size: 32px; font-weight: bold; color: #F56C6C; margin-top: 8px">{{ dashboard.expiringCount || 0 }}</div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="6">
         <el-card shadow="hover" style="border-left: 4px solid #909399; cursor: pointer" @click="$router.push('/approval')">
           <div style="font-size: 14px; color: #999">待审批</div>
           <div style="font-size: 32px; font-weight: bold; color: #909399; margin-top: 8px">{{ dashboard.pendingApprovalCount || 0 }}</div>
@@ -28,7 +28,7 @@
     </el-row>
 
     <el-row :gutter="20" style="margin-bottom: 20px">
-      <el-col :span="12">
+      <el-col :xs="24" :lg="12">
         <el-card>
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
@@ -67,7 +67,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="12">
+      <el-col :xs="24" :lg="12">
         <el-card>
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">

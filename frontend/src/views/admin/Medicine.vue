@@ -120,7 +120,7 @@
             :on-success="handleUploadSuccess"
             accept="image/*"
           >
-            <el-image v-if="form.imageUrl" :src="form.imageUrl" style="width: 100px; height: 100px" fit="cover" />
+            <ProtectedImage v-if="form.imageUrl" :src="form.imageUrl" style="width: 100px; height: 100px" fit="cover" />
             <el-button v-else size="small" type="primary">上传图片</el-button>
           </el-upload>
           <el-button v-if="form.imageUrl" size="small" style="margin-left:10px" @click="form.imageUrl=''">删除</el-button>
@@ -140,6 +140,7 @@ import { getMedicinePage, addMedicine, updateMedicine, disableMedicine, deleteMe
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { downloadFile } from '../../utils/download'
 import { QuestionFilled } from '@element-plus/icons-vue'
+import ProtectedImage from '../../components/ProtectedImage.vue'
 
 const tableData = ref([])
 const dialogVisible = ref(false)

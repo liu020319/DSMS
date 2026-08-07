@@ -48,12 +48,16 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         record.setUserId(dto.getUserId());
         record.setPrescriptionId(dto.getPrescriptionId());
         record.setPurchaseDate(dto.getPurchaseDate());
+        record.setPurchaseTime(dto.getPurchaseTime() != null ? dto.getPurchaseTime() : dto.getPurchaseDate().atStartOfDay());
         record.setQuantityBoxes(dto.getQuantityBoxes());
         record.setUnitPrice(dto.getUnitPrice());
         record.setTotalPrice(dto.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantityBoxes())));
         record.setExpiryDate(dto.getExpiryDate());
         record.setOperatorId(dto.getOperatorId() != null ? dto.getOperatorId() : dto.getUserId());
         record.setPurchasePlatform(dto.getPurchasePlatform());
+        record.setPurchaseChannel(dto.getPurchaseChannel());
+        record.setOrderId(dto.getOrderId());
+        record.setProofUrl(dto.getProofUrl());
         boolean received = dto.getReceiptStatus() != null && dto.getReceiptStatus() == 1;
         record.setReceiptStatus(received ? 1 : 0);
         save(record);
@@ -75,10 +79,14 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (Integer.valueOf(1).equals(existing.getReceiptStatus())) {
             throw new BusinessException("已确认收货的记录已计入库存，不能直接修改");
         }
+        if (existing.getOrderId() != null) {
+            throw new BusinessException("家庭代购明细由订单和收货核验流程管理，不能在购药记录中单独修改");
+        }
         validatePurchase(dto);
         existing.setUserId(dto.getUserId());
         existing.setPrescriptionId(dto.getPrescriptionId());
         existing.setPurchaseDate(dto.getPurchaseDate());
+        existing.setPurchaseTime(dto.getPurchaseTime() != null ? dto.getPurchaseTime() : dto.getPurchaseDate().atStartOfDay());
         existing.setQuantityBoxes(dto.getQuantityBoxes());
         existing.setUnitPrice(dto.getUnitPrice());
         existing.setTotalPrice(dto.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantityBoxes())));
@@ -86,6 +94,8 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (dto.getPurchasePlatform() != null) {
             existing.setPurchasePlatform(dto.getPurchasePlatform());
         }
+        if (dto.getPurchaseChannel() != null) existing.setPurchaseChannel(dto.getPurchaseChannel());
+        if (dto.getProofUrl() != null) existing.setProofUrl(dto.getProofUrl());
         updateById(existing);
     }
 
@@ -98,18 +108,34 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (Integer.valueOf(1).equals(record.getReceiptStatus())) {
             throw new BusinessException("已确认收货的记录已计入库存，不能删除");
         }
+        if (record.getOrderId() != null) {
+            throw new BusinessException("家庭代购明细不能在购药记录中单独删除");
+        }
         removeById(purchaseId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void confirmReceipt(Long purchaseId) {
+        confirmReceiptInternal(purchaseId, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmFamilyReceipt(Long purchaseId) {
+        confirmReceiptInternal(purchaseId, true);
+    }
+
+    private void confirmReceiptInternal(Long purchaseId, boolean familyReceiptVerified) {
         PurchaseRecord record = getById(purchaseId);
         if (record == null) {
             throw new BusinessException("购药记录不存在");
         }
         if (record.getReceiptStatus() != null && record.getReceiptStatus() == 1) {
             throw new BusinessException("该记录已确认收货，请勿重复操作");
+        }
+        if (record.getOrderId() != null && !familyReceiptVerified) {
+            throw new BusinessException("家庭代购订单必须由安心用药端完成照片、数量和国药准字号核验");
         }
         record.setReceiptStatus(1);
         updateById(record);
@@ -182,6 +208,12 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         return baseMapper.selectYearlyStatsDynamic(userId);
     }
 
+    @Override public List<Map<String, Object>> getWeeklyStats(Long userId) { return baseMapper.selectWeeklyStatsDynamic(userId); }
+    @Override public List<Map<String, Object>> getPlatformStats(Long userId) { return baseMapper.selectPlatformStatsDynamic(userId); }
+    @Override public List<Map<String, Object>> getChannelStats(Long userId) { return baseMapper.selectChannelStatsDynamic(userId); }
+    @Override public List<Map<String, Object>> getTimeBucketStats(Long userId) { return baseMapper.selectTimeBucketStatsDynamic(userId); }
+    @Override public Map<String, Object> getExpenseSummary(Long userId) { return baseMapper.selectExpenseSummary(userId); }
+
     @Override
     public List<PurchaseRecordVO> listForExport(Long userId) {
         LambdaQueryWrapper<PurchaseRecord> wrapper = new LambdaQueryWrapper<>();
@@ -200,6 +232,7 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
             vo.setUserId(r.getUserId());
             vo.setPrescriptionId(r.getPrescriptionId());
             vo.setPurchaseDate(r.getPurchaseDate());
+            vo.setPurchaseTime(r.getPurchaseTime());
             vo.setQuantityBoxes(r.getQuantityBoxes());
             vo.setUnitPrice(r.getUnitPrice());
             vo.setTotalPrice(r.getTotalPrice());
@@ -207,6 +240,9 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
             vo.setOperatorId(r.getOperatorId());
             vo.setReceiptStatus(r.getReceiptStatus());
             vo.setPurchasePlatform(r.getPurchasePlatform());
+            vo.setPurchaseChannel(r.getPurchaseChannel());
+            vo.setOrderId(r.getOrderId());
+            vo.setProofUrl(r.getProofUrl());
             Prescription p = prescriptionMapper.selectById(r.getPrescriptionId());
             if (p != null) {
                 Medicine m = medicineMapper.selectById(p.getMedicineId());

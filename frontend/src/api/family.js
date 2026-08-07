@@ -1,0 +1,15 @@
+import request from '../utils/request'
+
+export const submitPurchaseRequest = data => request.post('/family/request', data)
+export const createFamilyOrder = data => request.post('/family/order', data)
+export const getFamilyOrders = elderId => request.get('/family/orders', { params: { elderId } })
+export const getFamilyOrderDetail = id => request.get('/family/order/' + id)
+export const updateOrderLogistics = (id, data) => request.post('/family/order/' + id + '/logistics', data)
+export const verifyFamilyOrderReceipt = (id, data) => request.post('/family/order/' + id + '/receipt-check', data)
+export const reopenFamilyOrderReceipt = id => request.put('/family/order/' + id + '/receipt-reopen')
+export const getFamilyFund = elderId => request.get('/family/fund/' + elderId)
+export const addFamilyFund = data => request.post('/family/fund', data)
+export const getNotifications = () => request.get('/family/notifications')
+export const getUnreadNotificationCount = () => request.get('/family/notifications/unread-count')
+export const markNotificationRead = id => request.put('/family/notifications/' + id + '/read')
+export const sendFamilyCheckIn = () => request.post('/family/check-in')

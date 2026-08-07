@@ -22,13 +22,16 @@ request.interceptors.response.use(
     }
     const res = response.data
     if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
+      if (!response.config.skipErrorMessage) ElMessage.error(res.message || '请求失败')
       if (res.code === 401) {
         localStorage.removeItem('token')
         localStorage.removeItem('userInfo')
         router.push('/login')
       }
-      return Promise.reject(new Error(res.message || '请求失败'))
+      const appError = new Error(res.message || '请求失败')
+      appError.code = res.code
+      appError.data = res.data
+      return Promise.reject(appError)
     }
     return res
   },
@@ -38,7 +41,7 @@ request.interceptors.response.use(
       localStorage.removeItem('userInfo')
       router.push('/login')
     }
-    ElMessage.error(error.message || '网络错误')
+    if (!error.config?.skipErrorMessage) ElMessage.error(error.message || '网络错误')
     return Promise.reject(error)
   }
 )

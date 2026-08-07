@@ -9,7 +9,7 @@ import com.medicine.util.MedicationCalcUtil;
 public interface StockDeductionService {
 
     /**
-     * 登录时分时段扣减库存（核心方法）
+     * 按当前时间补齐尚未执行的分时段库存扣减（核心方法）
      * 使用乐观锁保证并发安全，扣减SQL加version版本号校验
      *
      * @param stockId 库存ID

@@ -14,12 +14,16 @@ public class PurchaseRecord {
     private Long userId;
     private Long prescriptionId;
     private LocalDate purchaseDate;
+    private LocalDateTime purchaseTime;
     private Integer quantityBoxes;
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private LocalDate expiryDate;
     private Long operatorId;
     private String purchasePlatform;
+    private String purchaseChannel;
+    private Long orderId;
+    private String proofUrl;
     private Integer receiptStatus;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

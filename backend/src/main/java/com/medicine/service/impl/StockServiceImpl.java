@@ -15,6 +15,7 @@ import com.medicine.vo.StockVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,14 +40,27 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         if (stock == null) {
             return;
         }
+        LocalDateTime now = LocalDateTime.now();
+        if (stock.getExpiryDate() != null && stock.getExpiryDate().isBefore(now.toLocalDate())) {
+            stock.setTotalRemainingUnits(0);
+            stock.setRemainingDays(0);
+            stock.setLastCalcTime(now);
+            updateById(stock);
+            return;
+        }
         Prescription prescription = prescriptionMapper.selectById(stock.getPrescriptionId());
         if (prescription == null || prescription.getStatus() == 0) {
             return;
         }
         int dailyConsumption = prescription.getDailyConsumption();
 
-        LocalDateTime now = LocalDateTime.now();
         LocalDateTime lastCalcTime = stock.getLastCalcTime();
+        if (lastCalcTime == null) {
+            stock.setLastCalcTime(now);
+            stock.setRemainingDays(dailyConsumption > 0 ? stock.getTotalRemainingUnits() / dailyConsumption : 0);
+            updateById(stock);
+            return;
+        }
 
         long n = ChronoUnit.DAYS.between(lastCalcTime.toLocalDate(), now.toLocalDate());
         if (n < 0) {
@@ -99,13 +113,28 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addStockOnPurchase(Long prescriptionId, Integer quantityBoxes, LocalDate expiryDate) {
+        if (quantityBoxes == null || quantityBoxes <= 0) {
+            throw new BusinessException("入库盒数必须大于0");
+        }
+        if (expiryDate == null || expiryDate.isBefore(LocalDate.now())) {
+            throw new BusinessException("过期药品不能入库");
+        }
         Prescription prescription = prescriptionMapper.selectById(prescriptionId);
-        if (prescription == null) {
+        if (prescription == null || prescription.getDailyConsumption() == null || prescription.getDailyConsumption() <= 0) {
             throw new BusinessException("用药方案不存在");
         }
         Medicine medicine = medicineMapper.selectById(prescription.getMedicineId());
-        int addedUnits = quantityBoxes * medicine.getUnitPerBox();
+        if (medicine == null || medicine.getUnitPerBox() == null || medicine.getUnitPerBox() <= 0) {
+            throw new BusinessException("药品信息不完整");
+        }
+        int addedUnits;
+        try {
+            addedUnits = Math.multiplyExact(quantityBoxes, medicine.getUnitPerBox());
+        } catch (ArithmeticException e) {
+            throw new BusinessException("入库数量超出允许范围");
+        }
 
         Stock stock = getByPrescriptionId(prescriptionId);
         if (stock == null) {
@@ -120,7 +149,7 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
             calculateRemainingDays(stock.getStockId());
             stock = getById(stock.getStockId());
             stock.setTotalRemainingUnits(stock.getTotalRemainingUnits() + addedUnits);
-            if (expiryDate.isBefore(stock.getExpiryDate())) {
+            if (stock.getExpiryDate() == null || expiryDate.isBefore(stock.getExpiryDate())) {
                 stock.setExpiryDate(expiryDate);
             }
             if (prescription.getDailyConsumption() > 0) {
@@ -132,13 +161,25 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deductStockOnLoss(Long prescriptionId, Integer lossBoxes) {
+        if (lossBoxes == null || lossBoxes <= 0) {
+            throw new BusinessException("报损盒数必须大于0");
+        }
         Prescription prescription = prescriptionMapper.selectById(prescriptionId);
         if (prescription == null) {
             throw new BusinessException("用药方案不存在");
         }
         Medicine medicine = medicineMapper.selectById(prescription.getMedicineId());
-        int deductUnits = lossBoxes * medicine.getUnitPerBox();
+        if (medicine == null || medicine.getUnitPerBox() == null || medicine.getUnitPerBox() <= 0) {
+            throw new BusinessException("药品信息不完整");
+        }
+        int deductUnits;
+        try {
+            deductUnits = Math.multiplyExact(lossBoxes, medicine.getUnitPerBox());
+        } catch (ArithmeticException e) {
+            throw new BusinessException("报损数量超出允许范围");
+        }
 
         Stock stock = getByPrescriptionId(prescriptionId);
         if (stock == null) {
@@ -225,6 +266,9 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
 
     @Override
     public int calculateBoxCount(Long prescriptionId, Integer days) {
+        if (days == null || days <= 0) {
+            throw new BusinessException("购买天数必须大于0");
+        }
         Prescription prescription = prescriptionMapper.selectById(prescriptionId);
         if (prescription == null) {
             throw new BusinessException("用药方案不存在");
@@ -233,8 +277,16 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         if (medicine == null) {
             throw new BusinessException("药品不存在");
         }
-        int neededUnits = days * prescription.getDailyConsumption();
-        return (int) Math.ceil((double) neededUnits / medicine.getUnitPerBox());
+        if (prescription.getDailyConsumption() == null || prescription.getDailyConsumption() <= 0
+                || medicine.getUnitPerBox() == null || medicine.getUnitPerBox() <= 0) {
+            throw new BusinessException("用药方案或药品规格不正确");
+        }
+        long neededUnits = (long) days * prescription.getDailyConsumption();
+        long boxes = (neededUnits + medicine.getUnitPerBox() - 1) / medicine.getUnitPerBox();
+        if (boxes > Integer.MAX_VALUE) {
+            throw new BusinessException("计算结果超出允许范围");
+        }
+        return (int) boxes;
     }
 
     private StockVO convertToVO(Map<String, Object> detail) {

@@ -1,7 +1,6 @@
 package com.medicine.service.impl;
 
 import com.medicine.service.DashboardService;
-import com.medicine.service.StockDeductionService;
 import com.medicine.service.StockService;
 import com.medicine.vo.DashboardVO;
 import com.medicine.vo.StockVO;
@@ -24,9 +23,6 @@ public class DashboardServiceImpl implements DashboardService {
     private StockService stockService;
 
     @Autowired
-    private StockDeductionService stockDeductionService;
-
-    @Autowired
     private MedicineMapper medicineMapper;
 
     @Autowired
@@ -37,8 +33,6 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardVO getAdminDashboard() {
-        // 首页刷新时调用分时段扣减算法
-        stockDeductionService.deductAllWithPeriod();
         DashboardVO vo = new DashboardVO();
         LambdaQueryWrapper<Medicine> mWrapper = new LambdaQueryWrapper<>();
         mWrapper.eq(Medicine::getStatus, 1);
@@ -60,8 +54,6 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public DashboardVO getElderDashboard(Long userId) {
-        // 首页刷新时调用分时段扣减算法
-        stockDeductionService.deductAllByUserIdWithPeriod(userId);
         DashboardVO vo = new DashboardVO();
         LambdaQueryWrapper<Prescription> pWrapper = new LambdaQueryWrapper<>();
         pWrapper.eq(Prescription::getUserId, userId).eq(Prescription::getStatus, 1);

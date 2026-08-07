@@ -23,4 +23,9 @@ public interface PurchaseRecordMapper extends BaseMapper<PurchaseRecord> {
     List<Map<String, Object>> selectMonthlyStatsDynamic(Long userId);
     List<Map<String, Object>> selectDailyStatsDynamic(Long userId, String startDate);
     List<Map<String, Object>> selectYearlyStatsDynamic(Long userId);
+    List<Map<String, Object>> selectWeeklyStatsDynamic(Long userId);
+    List<Map<String, Object>> selectPlatformStatsDynamic(Long userId);
+    List<Map<String, Object>> selectChannelStatsDynamic(Long userId);
+    List<Map<String, Object>> selectTimeBucketStatsDynamic(Long userId);
+    Map<String, Object> selectExpenseSummary(Long userId);
 }

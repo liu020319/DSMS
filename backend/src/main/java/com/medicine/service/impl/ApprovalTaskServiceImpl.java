@@ -130,9 +130,10 @@ public class ApprovalTaskServiceImpl extends ServiceImpl<ApprovalTaskMapper, App
     }
 
     @Override
-    public Page<ApprovalTask> pageAll(int current, int size) {
+    public Page<ApprovalTask> pageAll(int current, int size, Long handlerId) {
         Page<ApprovalTask> page = new Page<>(current, size);
         LambdaQueryWrapper<ApprovalTask> wrapper = new LambdaQueryWrapper<>();
+        if (handlerId != null) wrapper.eq(ApprovalTask::getHandlerId, handlerId);
         wrapper.orderByDesc(ApprovalTask::getCreateTime);
         return page(page, wrapper);
     }

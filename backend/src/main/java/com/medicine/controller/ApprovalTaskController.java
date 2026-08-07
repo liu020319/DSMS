@@ -82,7 +82,7 @@ public class ApprovalTaskController {
             @RequestParam(required = false) Long handlerId,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(approvalTaskService.pagePending(current, size, handlerId));
+        return Result.success(approvalTaskService.pagePending(current, size, getUserId(request)));
     }
 
     @GetMapping("/my")
@@ -101,14 +101,18 @@ public class ApprovalTaskController {
             @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(approvalTaskService.pageAll(current, size));
+        return Result.success(approvalTaskService.pageAll(current, size, getUserId(request)));
     }
 
     @GetMapping("/{id}")
     public Result<ApprovalTask> getById(@PathVariable("id") Long id, HttpServletRequest request) {
         ApprovalTask task = approvalTaskService.getById(id);
         if (task != null) {
-            accessControl.requireOwnerOrAdmin(request, task.getApplicantId());
+            Long currentUserId = getUserId(request);
+            if ("ADMIN".equals(request.getAttribute("role")) && !currentUserId.equals(task.getHandlerId())) {
+                throw new BusinessException(403, "无权查看其他家庭的申请");
+            }
+            if (!"ADMIN".equals(request.getAttribute("role"))) accessControl.requireOwnerOrAdmin(request, task.getApplicantId());
         }
         return Result.success(task);
     }

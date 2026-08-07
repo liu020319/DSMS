@@ -1,184 +1,79 @@
 <template>
-  <el-container style="height: 100vh">
-    <el-aside width="220px" style="background-color: #304156; overflow-y: auto">
-      <div style="height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; font-weight: bold; border-bottom: 1px solid #3a4a5d">
-        用药安全管理系统
-      </div>
-      <el-menu
-        :default-active="$route.path"
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
-        router
-      >
-        <el-menu-item index="/dashboard">
-          <el-icon><HomeFilled /></el-icon>
-          <span>首页工作台</span>
-        </el-menu-item>
-        <el-menu-item index="/medicine">
-          <el-icon><FirstAidKit /></el-icon>
-          <span>药品档案管理</span>
-        </el-menu-item>
-        <el-menu-item index="/prescription">
-          <el-icon><Document /></el-icon>
-          <span>用药方案管理</span>
-        </el-menu-item>
-        <el-menu-item index="/purchase">
-          <el-icon><ShoppingCart /></el-icon>
-          <span>购药记录管理</span>
-        </el-menu-item>
-        <el-menu-item index="/approval">
-          <el-icon><Stamp /></el-icon>
-          <span>审批中心</span>
-          <el-badge v-if="pendingCount > 0" :value="pendingCount" :max="99" style="margin-left: 8px" />
-        </el-menu-item>
-        <el-menu-item index="/statistics">
-          <el-icon><TrendCharts /></el-icon>
-          <span>统计报表中心</span>
-        </el-menu-item>
-        <el-menu-item index="/system">
-          <el-icon><Setting /></el-icon>
-          <span>系统管理</span>
-        </el-menu-item>
-        <el-menu-item index="/log">
-          <el-icon><Notebook /></el-icon>
-          <span>操作日志</span>
-        </el-menu-item>
-        <el-menu-item index="/export">
-          <el-icon><Download /></el-icon>
-          <span>数据导出中心</span>
-        </el-menu-item>
-      </el-menu>
+  <el-container class="app-shell">
+    <el-aside v-if="!isMobile" width="232px" class="desktop-aside">
+      <AdminNavigation :active-path="$route.path" :pending-count="pendingCount" :notification-count="notificationCount" />
     </el-aside>
-    <el-container>
-      <el-header style="background: #fff; border-bottom: 1px solid #e6e6e6; padding: 0 20px; height: auto; min-height: 50px">
-        <div style="display: flex; align-items: center; justify-content: space-between; height: 50px">
-          <span style="font-size: 18px; font-weight: bold; color: #333">{{ $route.meta.title || '首页工作台' }}</span>
-          <div style="display: flex; align-items: center; gap: 15px">
-            <el-tag type="success">子女端</el-tag>
-            <span>{{ userStore.userInfo.realName }}</span>
-            <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
+
+    <el-drawer v-model="mobileNavVisible" direction="ltr" size="82%" :with-header="false" class="mobile-drawer">
+      <AdminNavigation :active-path="$route.path" :pending-count="pendingCount" :notification-count="notificationCount" @navigate="mobileNavVisible = false" />
+    </el-drawer>
+
+    <el-container class="content-shell">
+      <el-header class="app-header">
+        <div class="header-main">
+          <el-button v-if="isMobile" text class="menu-button" @click="mobileNavVisible = true"><el-icon><Menu /></el-icon></el-button>
+          <div class="page-heading">
+            <span>{{ $route.meta.title || '首页工作台' }}</span>
+            <small v-if="!isMobile">安康药管家 · 家庭守护端</small>
           </div>
+          <el-dropdown trigger="click">
+            <div class="user-entry">
+              <el-avatar :size="34">{{ userStore.userInfo.realName?.slice(0, 1) || '家' }}</el-avatar>
+              <span v-if="!isMobile">{{ userStore.userInfo.realName }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="$router.push('/security')"><el-icon><Lock /></el-icon>账号与安全</el-dropdown-item>
+                <el-dropdown-item divided @click="handleLogout"><el-icon><SwitchButton /></el-icon>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
-        <div class="quick-nav-bar">
-          <div class="quick-nav-item nav-medicine" @click="$router.push('/medicine')">
-            <el-icon><FirstAidKit /></el-icon>
-            <span>药品档案</span>
-          </div>
-          <div class="quick-nav-item nav-prescription" @click="$router.push('/prescription')">
-            <el-icon><Document /></el-icon>
-            <span>用药方案</span>
-          </div>
-          <div class="quick-nav-item nav-purchase" @click="$router.push('/purchase')">
-            <el-icon><ShoppingCart /></el-icon>
-            <span>购药记录</span>
-          </div>
-          <div class="quick-nav-item nav-approval" @click="$router.push('/approval')">
-            <el-icon><Stamp /></el-icon>
-            <span>审批中心</span>
-            <el-badge v-if="pendingCount > 0" :value="pendingCount" :max="99" class="quick-badge" />
-          </div>
-          <div class="quick-nav-item nav-statistics" @click="$router.push('/statistics')">
-            <el-icon><TrendCharts /></el-icon>
-            <span>统计报表</span>
-          </div>
+        <div v-if="!isMobile" class="quick-nav-bar">
+          <button @click="$router.push('/medicine')"><el-icon><FirstAidKit /></el-icon>药品档案</button>
+          <button @click="$router.push('/prescription')"><el-icon><Document /></el-icon>用药方案</button>
+          <button @click="$router.push('/purchase')"><el-icon><ShoppingCart /></el-icon>购药记录</button>
+          <button @click="$router.push('/approval')"><el-icon><Stamp /></el-icon>审批中心<el-badge v-if="pendingCount" :value="pendingCount" /></button>
         </div>
       </el-header>
-      <el-main style="background: #f0f2f5; padding: 20px; overflow-y: auto">
-        <router-view />
-      </el-main>
+      <el-main class="app-main"><router-view /></el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useRouter } from 'vue-router'
 import { getPendingList } from '../api/approval'
+import AdminNavigation from '../components/AdminNavigation.vue'
+import { getUnreadNotificationCount } from '../api/family'
 
 const userStore = useUserStore()
 const router = useRouter()
 const pendingCount = ref(0)
-
-const handleLogout = () => {
-  userStore.logout()
-  router.push('/login')
-}
+const notificationCount = ref(0)
+const isMobile = ref(window.innerWidth <= 900)
+const mobileNavVisible = ref(false)
+const syncViewport = () => { isMobile.value = window.innerWidth <= 900; if (!isMobile.value) mobileNavVisible.value = false }
+const handleLogout = () => { userStore.logout(); router.push('/login') }
 
 onMounted(async () => {
-  try {
-    const res = await getPendingList({ current: 1, size: 1 })
-    pendingCount.value = res.data.total || 0
-  } catch (e) {}
+  window.addEventListener('resize', syncViewport)
+  try { const res = await getPendingList({ current: 1, size: 1 }); pendingCount.value = res.data.total || 0 } catch (e) {}
+  try { const res = await getUnreadNotificationCount(); notificationCount.value = res.data || 0 } catch (e) {}
 })
+onBeforeUnmount(() => window.removeEventListener('resize', syncViewport))
 </script>
 
 <style scoped>
-.el-aside::-webkit-scrollbar {
-  width: 0;
-}
-.el-menu {
-  border-right: none;
-}
-.el-menu-item {
-  height: 50px;
-  line-height: 50px;
-}
-.quick-nav-bar {
-  display: flex;
-  gap: 8px;
-  border-top: 1px solid #f0f0f0;
-  padding: 8px 0;
-  margin: 0 -20px;
-  padding-left: 20px;
-  padding-right: 20px;
-}
-.quick-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.25s;
-  position: relative;
-  border-radius: 6px;
-  white-space: nowrap;
-}
-.quick-nav-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  filter: brightness(1.1);
-}
-.quick-nav-item .el-icon {
-  font-size: 16px;
-}
-.nav-medicine {
-  background: linear-gradient(135deg, #409EFF, #337ecc);
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
-}
-.nav-prescription {
-  background: linear-gradient(135deg, #67C23A, #529b2e);
-  box-shadow: 0 2px 6px rgba(103, 194, 58, 0.3);
-}
-.nav-purchase {
-  background: linear-gradient(135deg, #E6A23C, #cf8e24);
-  box-shadow: 0 2px 6px rgba(230, 162, 60, 0.3);
-}
-.nav-approval {
-  background: linear-gradient(135deg, #F56C6C, #dd5a5a);
-  box-shadow: 0 2px 6px rgba(245, 108, 108, 0.3);
-}
-.nav-statistics {
-  background: linear-gradient(135deg, #909399, #73767a);
-  box-shadow: 0 2px 6px rgba(144, 147, 153, 0.3);
-}
-.quick-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-}
+.app-shell { height: 100vh; background: #f2f5f4; }.desktop-aside { overflow-y: auto; background: #16343d; }.desktop-aside::-webkit-scrollbar { width: 0; }.content-shell { min-width: 0; }
+.app-header { height: auto; padding: 0; background: rgba(255,255,255,.96); border-bottom: 1px solid #e5ebe8; box-shadow: 0 2px 12px rgba(24,53,61,.04); z-index: 3; }
+.header-main { height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }.page-heading span,.page-heading small { display: block; }.page-heading span { color: #173640; font-size: 19px; font-weight: 750; }.page-heading small { margin-top: 3px; color: #98a5a1; font-size: 11px; letter-spacing: 1px; }
+.user-entry { display: flex; align-items: center; gap: 9px; color: #314a51; cursor: pointer; }.user-entry .el-avatar { color: #fff; background: linear-gradient(135deg,#32b67a,#3a8d8d); }.menu-button { margin-right: 8px; font-size: 23px; }.page-heading { margin-right: auto; }
+.quick-nav-bar { height: 43px; display: flex; gap: 8px; align-items: center; padding: 0 24px; border-top: 1px solid #f0f3f2; }.quick-nav-bar button { display: flex; align-items: center; gap: 6px; padding: 7px 13px; border: 0; border-radius: 9px; color: #476169; background: #f1f6f4; cursor: pointer; }.quick-nav-bar button:hover { color: #167458; background: #e4f3ed; }
+.app-main { overflow-y: auto; padding: 22px; background: #f2f5f4; }
+:deep(.mobile-drawer .el-drawer__body) { padding: 0; background: #16343d; }
+@media (max-width: 900px) { .header-main { height: 56px; padding: 0 12px; }.page-heading span { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; }.app-main { padding: 12px; }.user-entry { gap: 5px; } }
 </style>

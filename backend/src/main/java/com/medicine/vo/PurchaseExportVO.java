@@ -20,6 +20,8 @@ public class PurchaseExportVO {
     private String specification;
     @ExcelProperty("购药日期")
     private String purchaseDate;
+    @ExcelProperty("实际下单时间")
+    private String purchaseTime;
     @ExcelProperty("购买盒数")
     private Integer quantityBoxes;
     @ExcelProperty("单价(元)")
@@ -30,6 +32,14 @@ public class PurchaseExportVO {
     private String expiryDate;
     @ExcelProperty("购药平台")
     private String purchasePlatform;
+    @ExcelProperty("购买渠道")
+    private String purchaseChannel;
+    @ExcelProperty("家庭订单号")
+    private Long orderId;
+    @ExcelProperty("订单截图/票据地址")
+    private String proofUrl;
+    @ExcelProperty("收货状态")
+    private String receiptStatus;
     @ExcelProperty("操作人")
     private String operatorName;
 }

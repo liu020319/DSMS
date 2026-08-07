@@ -4,7 +4,8 @@
 
     <select id="selectMonthlyStatsDynamic" resultType="java.util.Map">
         SELECT DATE_FORMAT(pr.purchase_date, '%Y-%m') as month,
-               SUM(pr.total_price) as total_amount, COUNT(*) as count
+               SUM(pr.total_price) as total_amount, COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">
             AND pr.user_id = #{userId}
@@ -13,9 +14,68 @@
         ORDER BY month
     </select>
 
+    <select id="selectWeeklyStatsDynamic" resultType="java.util.Map">
+        SELECT DATE_FORMAT(pr.purchase_date, '%x-W%v') as week,
+               SUM(pr.total_price) as total_amount,
+               COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">AND pr.user_id = #{userId}</if>
+        GROUP BY DATE_FORMAT(pr.purchase_date, '%x-W%v') ORDER BY week
+    </select>
+
+    <select id="selectPlatformStatsDynamic" resultType="java.util.Map">
+        SELECT COALESCE(NULLIF(pr.purchase_platform,''), '未填写') as name,
+               SUM(pr.total_price) as total_amount,
+               COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">AND pr.user_id = #{userId}</if>
+        GROUP BY COALESCE(NULLIF(pr.purchase_platform,''), '未填写') ORDER BY total_amount DESC
+    </select>
+
+    <select id="selectChannelStatsDynamic" resultType="java.util.Map">
+        SELECT CASE WHEN pr.purchase_channel = 'OFFLINE' THEN '线下' ELSE '线上' END as name,
+               SUM(pr.total_price) as total_amount,
+               COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">AND pr.user_id = #{userId}</if>
+        GROUP BY CASE WHEN pr.purchase_channel = 'OFFLINE' THEN '线下' ELSE '线上' END ORDER BY total_amount DESC
+    </select>
+
+    <select id="selectTimeBucketStatsDynamic" resultType="java.util.Map">
+        SELECT CASE
+                 WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 0 AND 5 THEN '凌晨(0-6点)'
+                 WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 6 AND 11 THEN '上午(6-12点)'
+                 WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 12 AND 17 THEN '下午(12-18点)'
+                 ELSE '晚上(18-24点)' END as name,
+               SUM(pr.total_price) as total_amount,
+               COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">AND pr.user_id = #{userId}</if>
+        GROUP BY CASE
+                 WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 0 AND 5 THEN '凌晨(0-6点)'
+                 WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 6 AND 11 THEN '上午(6-12点)'
+                 WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 12 AND 17 THEN '下午(12-18点)'
+                 ELSE '晚上(18-24点)' END ORDER BY total_amount DESC
+    </select>
+
+    <select id="selectExpenseSummary" resultType="java.util.Map">
+        SELECT COALESCE(SUM(pr.total_price),0) as total_amount,
+               COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as order_count,
+               COALESCE(AVG(pr.total_price),0) as average_item_amount,
+               COALESCE(SUM(CASE WHEN pr.purchase_channel = 'OFFLINE' THEN 0 ELSE pr.total_price END),0) as online_amount,
+               COALESCE(SUM(CASE WHEN pr.purchase_channel = 'OFFLINE' THEN pr.total_price ELSE 0 END),0) as offline_amount
+        FROM purchase_record pr WHERE pr.deleted = 0
+        <if test="userId != null">AND pr.user_id = #{userId}</if>
+    </select>
+
     <select id="selectDailyStatsDynamic" resultType="java.util.Map">
         SELECT DATE_FORMAT(pr.purchase_date, '%Y-%m-%d') as day,
-               SUM(pr.total_price) as total_amount, COUNT(*) as count
+               SUM(pr.total_price) as total_amount, COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">
             AND pr.user_id = #{userId}
@@ -27,7 +87,8 @@
 
     <select id="selectYearlyStatsDynamic" resultType="java.util.Map">
         SELECT DATE_FORMAT(pr.purchase_date, '%Y') as year,
-               SUM(pr.total_price) as total_amount, COUNT(*) as count
+               SUM(pr.total_price) as total_amount, COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
+               ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
         <if test="userId != null">
             AND pr.user_id = #{userId}
