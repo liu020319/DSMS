@@ -1,234 +1,64 @@
 <template>
-  <div>
-    <el-row :gutter="20" style="margin-bottom: 20px">
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover" style="border-left: 4px solid #409EFF; cursor: pointer" @click="$router.push('/prescription')">
-          <div style="font-size: 14px; color: #999">在用药品数</div>
-          <div style="font-size: 32px; font-weight: bold; color: #409EFF; margin-top: 8px">{{ dashboard.activePrescriptions || 0 }}</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover" style="border-left: 4px solid #E6A23C; cursor: pointer" @click="scrollToWarning">
-          <div style="font-size: 14px; color: #999">库存预警</div>
-          <div style="font-size: 32px; font-weight: bold; color: #E6A23C; margin-top: 8px">{{ dashboard.warningCount || 0 }}</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover" style="border-left: 4px solid #F56C6C; cursor: pointer" @click="scrollToExpiring">
-          <div style="font-size: 14px; color: #999">临期药品</div>
-          <div style="font-size: 32px; font-weight: bold; color: #F56C6C; margin-top: 8px">{{ dashboard.expiringCount || 0 }}</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="hover" style="border-left: 4px solid #909399; cursor: pointer" @click="$router.push('/approval')">
-          <div style="font-size: 14px; color: #999">待审批</div>
-          <div style="font-size: 32px; font-weight: bold; color: #909399; margin-top: 8px">{{ dashboard.pendingApprovalCount || 0 }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
+  <div class="dashboard-page">
+    <section class="welcome-panel">
+      <div class="welcome-copy"><span>{{ todayLabel }} · 家庭药事协同</span><h1>{{ greeting }}，{{ userName }}</h1><p>今天有 <b>{{ urgentCount }}</b> 项用药风险需要关注，<b>{{ dashboard.pendingApprovalCount || 0 }}</b> 项申请等待处理。</p><div class="welcome-actions"><el-button type="primary" @click="$router.push('/risk-center')">进入风险中心</el-button><el-button plain @click="$router.push('/approval')">处理申请</el-button></div></div>
+      <div class="health-score"><div class="score-ring" :style="{'--score': healthScore*3.6+'deg'}"><span><strong>{{ healthScore }}</strong><small>家庭健康分</small></span></div><p>{{ healthScore >= 90 ? '整体状态良好' : '请优先处理风险项' }}</p></div>
+      <div class="welcome-orbit orbit-a"></div><div class="welcome-orbit orbit-b"></div>
+    </section>
 
-    <el-row :gutter="20" style="margin-bottom: 20px">
-      <el-col :xs="24" :lg="12">
-        <el-card>
-          <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
-              <span style="font-weight: bold">⚠️ 库存不足预警（剩余不足7天）</span>
-              <el-button type="primary" size="small" @click="$router.push('/purchase')">去购药</el-button>
-            </div>
-          </template>
-          <div style="height: 320px; overflow-y: auto">
-            <div v-for="item in warningPageData" :key="item.stockId"
-              class="warning-card"
-              :class="{ 'warning-card-danger': item.remainingDays <= 3 }">
-              <div class="warning-card-header">
-                <span class="warning-card-name">{{ item.medicineName }}</span>
-                <PeriodTags :periods="parsePeriods(item.takePeriods)" :deducted="parseDeducted(item.todayDeductedPeriods)" :frequency-code="item.takeFrequencyCode" />
-              </div>
-              <div class="warning-card-body">
-                <span style="color:#999">{{ item.specification }}</span>
-                <span style="margin-left:10px">{{ item.realName }}</span>
-                <el-tag :type="item.remainingDays <= 3 ? 'danger' : 'warning'" style="margin-left:auto">
-                  剩余{{ item.remainingDays }}天
-                </el-tag>
-                <el-button size="small" type="warning" style="margin-left:8px" @click="openAdjust(item)">修正</el-button>
-              </div>
-            </div>
-            <el-empty v-if="!dashboard.warningList?.length" description="暂无预警" :image-size="60" />
-          </div>
-          <div v-if="dashboard.warningList?.length > warningPageSize" style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; gap: 10px">
-            <span style="font-size: 12px; color: #999">共{{ dashboard.warningList.length }}条</span>
-            <el-pagination
-              small
-              v-model:current-page="warningCurrentPage"
-              :page-size="warningPageSize"
-              :total="dashboard.warningList?.length || 0"
-              layout="prev, pager, next"
-            />
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :lg="12">
-        <el-card>
-          <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
-              <span style="font-weight: bold">📅 临期药品预警（30天内到期）</span>
-            </div>
-          </template>
-          <div style="height: 320px; overflow-y: auto">
-            <el-table :data="expiringPageData" size="small">
-              <el-table-column prop="realName" label="用户" width="80" />
-              <el-table-column prop="medicineName" label="药品名称" />
-              <el-table-column prop="specification" label="规格" width="120" />
-              <el-table-column prop="expiryDate" label="有效期" width="110">
-                <template #default="{ row }">
-                  <el-tag type="warning">{{ row.expiryDate }}</el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-empty v-if="!dashboard.expiringList?.length" description="暂无临期药品" :image-size="60" />
-          </div>
-          <div v-if="dashboard.expiringList?.length > expiringPageSize" style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; gap: 10px">
-            <span style="font-size: 12px; color: #999">共{{ dashboard.expiringList.length }}条</span>
-            <el-pagination
-              small
-              v-model:current-page="expiringCurrentPage"
-              :page-size="expiringPageSize"
-              :total="dashboard.expiringList?.length || 0"
-              layout="prev, pager, next"
-            />
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <section class="metric-grid">
+      <article @click="$router.push('/prescription')"><span class="metric-icon green"><el-icon><FirstAidKit /></el-icon></span><div><small>在用方案</small><strong>{{ dashboard.activePrescriptions || 0 }}</strong><em>持续追踪的药品</em></div><i class="metric-trend">查看方案 →</i></article>
+      <article @click="$router.push('/risk-center')"><span class="metric-icon amber"><el-icon><WarningFilled /></el-icon></span><div><small>库存预警</small><strong>{{ dashboard.warningCount || 0 }}</strong><em>剩余不足 7 天</em></div><i class="metric-trend danger">需处理</i></article>
+      <article @click="$router.push('/risk-center')"><span class="metric-icon blue"><el-icon><Calendar /></el-icon></span><div><small>临期药品</small><strong>{{ dashboard.expiringCount || 0 }}</strong><em>30 天内到期</em></div><i class="metric-trend">查看批次 →</i></article>
+      <article @click="$router.push('/approval')"><span class="metric-icon purple"><el-icon><Stamp /></el-icon></span><div><small>待审批</small><strong>{{ dashboard.pendingApprovalCount || 0 }}</strong><em>家庭成员提交</em></div><i class="metric-trend">进入审批 →</i></article>
+    </section>
 
-    <el-dialog v-model="adjustVisible" title="库存手动修正" width="450px">
-      <el-form label-width="100px">
-        <el-form-item label="药品">
-          <span style="font-weight:bold">{{ adjustItem.medicineName }}</span>
-        </el-form-item>
-        <el-form-item label="当前剩余">
-          <span>{{ adjustItem.totalRemainingUnits }}{{ adjustItem.dosageUnit || '片' }}</span>
-        </el-form-item>
-        <el-form-item label="调整量">
-          <el-input-number v-model="adjustForm.adjustUnits" :step="1" />
-          <div style="font-size:12px;color:#999;margin-top:4px">正数=补扣(减少库存)，负数=回滚(增加库存)</div>
-        </el-form-item>
-        <el-form-item label="调整原因">
-          <el-input v-model="adjustForm.reason" type="textarea" :rows="2" placeholder="请输入调整原因" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="adjustVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAdjust">确定修正</el-button>
-      </template>
-    </el-dialog>
+    <section class="workspace-grid">
+      <el-card shadow="never" class="focus-card">
+        <template #header><div class="card-heading"><div><span>今日重点</span><b>风险处置队列</b></div><el-button link type="primary" @click="$router.push('/risk-center')">查看全部</el-button></div></template>
+        <div class="risk-queue">
+          <article v-for="item in priorityRisks" :key="item.stockId" @click="openAdjust(item)">
+            <span class="risk-rank" :class="Number(item.remainingDays)<=3?'critical':'warning'">{{ Number(item.remainingDays)<=3?'紧急':'关注' }}</span>
+            <div><b>{{ item.medicineName }}</b><p>{{ item.realName }} · {{ item.specification }}</p></div>
+            <PeriodTags :periods="parsePeriods(item.takePeriods)" :deducted="parseDeducted(item.todayDeductedPeriods)" :frequency-code="item.takeFrequencyCode" />
+            <strong class="remaining">{{ item.remainingDays }}<small>天</small></strong>
+            <el-icon><ArrowRight /></el-icon>
+          </article>
+          <el-empty v-if="!priorityRisks.length" description="目前没有库存风险" :image-size="66" />
+        </div>
+      </el-card>
+
+      <el-card shadow="never" class="action-card">
+        <template #header><div class="card-heading"><div><span>快捷任务</span><b>常用业务入口</b></div></div></template>
+        <div class="action-grid">
+          <button @click="$router.push({path:'/medicine',query:{action:'create',at:Date.now()}})"><span><el-icon><Plus /></el-icon></span><b>新建药品</b><small>维护批准文号和规格</small></button>
+          <button @click="$router.push('/prescription')"><span><el-icon><DocumentAdd /></el-icon></span><b>配置方案</b><small>建立每日服药计划</small></button>
+          <button @click="$router.push('/purchase')"><span><el-icon><ShoppingCart /></el-icon></span><b>登记购药</b><small>记录费用与批次</small></button>
+          <button @click="$router.push('/family-orders')"><span><el-icon><Van /></el-icon></span><b>订单物流</b><small>上传凭证和运单</small></button>
+          <button @click="$router.push('/statistics')"><span><el-icon><TrendCharts /></el-icon></span><b>费用分析</b><small>年/月/周/日统计</small></button>
+          <button @click="$router.push('/data-quality')"><span><el-icon><DataAnalysis /></el-icon></span><b>质量扫描</b><small>检查缺失与绑定</small></button>
+        </div>
+      </el-card>
+    </section>
+
+    <section class="lower-grid">
+      <el-card shadow="never">
+        <template #header><div class="card-heading"><div><span>有效期管理</span><b>临期批次提醒</b></div><el-button link @click="$router.push('/risk-center')">批量查看</el-button></div></template>
+        <el-table :data="expiringPageData" size="small" class="plain-table"><el-table-column prop="realName" label="成员" width="90"/><el-table-column prop="medicineName" label="药品" min-width="150"/><el-table-column prop="specification" label="规格" min-width="120"/><el-table-column label="有效期" width="120"><template #default="{row}"><span class="date-pill">{{row.expiryDate}}</span></template></el-table-column></el-table>
+        <el-empty v-if="!expiringPageData.length" description="暂无临期药品" :image-size="56" />
+      </el-card>
+      <el-card shadow="never" class="capability-card"><template #header><div class="card-heading"><div><span>能力地图</span><b>全流程协同状态</b></div></div></template><div class="capability-list"><div><span class="done"><el-icon><CircleCheckFilled/></el-icon></span><p><b>购药申请与二次确认</b><small>申请提交后锁定，避免误改</small></p><em>已启用</em></div><div><span class="done"><el-icon><CircleCheckFilled/></el-icon></span><p><b>下单、物流与收货核验</b><small>数量、批准文号、照片逐项比对</small></p><em>已启用</em></div><div><span class="done"><el-icon><CircleCheckFilled/></el-icon></span><p><b>资金余额与费用凭证</b><small>转账、扣款、平台与明细可追溯</small></p><em>已启用</em></div><div><span class="done"><el-icon><CircleCheckFilled/></el-icon></span><p><b>登录安全与操作审计</b><small>人机验证、锁定、解锁与日志</small></p><em>已启用</em></div></div></el-card>
+    </section>
+
+    <el-dialog v-model="adjustVisible" title="库存手动修正" width="460px"><el-form label-width="100px"><el-form-item label="药品"><b>{{adjustItem.medicineName}}</b></el-form-item><el-form-item label="当前剩余">{{adjustItem.totalRemainingUnits}}{{adjustItem.dosageUnit||'单位'}}</el-form-item><el-form-item label="调整量"><el-input-number v-model="adjustForm.adjustUnits" :step="1"/><div class="form-help">正数表示扣减，负数表示回补</div></el-form-item><el-form-item label="调整原因"><el-input v-model="adjustForm.reason" type="textarea" :rows="3" placeholder="请填写可审计的调整原因"/></el-form-item></el-form><template #footer><el-button @click="adjustVisible=false">取消</el-button><el-button type="primary" @click="handleAdjust">确认修正</el-button></template></el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
-import { getAdminDashboard, manualAdjustStock } from '../../api/dashboard'
-import { ElMessage } from 'element-plus'
-import PeriodTags from '../../components/PeriodTags.vue'
-
-const dashboard = ref({})
-const warningCurrentPage = ref(1)
-const warningPageSize = ref(5)
-const expiringCurrentPage = ref(1)
-const expiringPageSize = ref(5)
-const adjustVisible = ref(false)
-const adjustItem = reactive({})
-const adjustForm = reactive({ adjustUnits: 0, reason: '' })
-
-const warningPageData = computed(() => {
-  const list = dashboard.value.warningList || []
-  const start = (warningCurrentPage.value - 1) * warningPageSize.value
-  return list.slice(start, start + warningPageSize.value)
-})
-
-const expiringPageData = computed(() => {
-  const list = dashboard.value.expiringList || []
-  const start = (expiringCurrentPage.value - 1) * expiringPageSize.value
-  return list.slice(start, start + expiringPageSize.value)
-})
-
-const parsePeriods = (periodsStr) => {
-  if (!periodsStr) return []
-  try { return JSON.parse(periodsStr) } catch { return [] }
-}
-
-const parseDeducted = (str) => {
-  if (!str) return []
-  try { return JSON.parse(str) } catch { return [] }
-}
-
-const scrollToWarning = () => {
-  window.scrollTo({ top: 200, behavior: 'smooth' })
-}
-
-const scrollToExpiring = () => {
-  window.scrollTo({ top: 200, behavior: 'smooth' })
-}
-
-const openAdjust = (item) => {
-  Object.assign(adjustItem, item)
-  adjustForm.adjustUnits = 0
-  adjustForm.reason = ''
-  adjustVisible.value = true
-}
-
-const handleAdjust = async () => {
-  if (adjustForm.adjustUnits === 0) {
-    ElMessage.warning('调整量不能为0')
-    return
-  }
-  await manualAdjustStock(adjustItem.stockId, adjustForm.adjustUnits, adjustForm.reason)
-  ElMessage.success('库存修正成功')
-  adjustVisible.value = false
-  const res = await getAdminDashboard()
-  dashboard.value = res.data
-}
-
-onMounted(async () => {
-  try {
-    const res = await getAdminDashboard()
-    dashboard.value = res.data
-    localStorage.setItem('dashboardCache', JSON.stringify(res.data))
-  } catch (e) {
-    const cached = localStorage.getItem('dashboardCache')
-    if (cached) {
-      dashboard.value = JSON.parse(cached)
-      ElMessage.warning('网络异常，展示上次缓存数据')
-    }
-  }
-})
+import { computed,onMounted,reactive,ref } from 'vue';import { useUserStore } from '../../stores/user';import { getAdminDashboard,manualAdjustStock } from '../../api/dashboard';import { ElMessage } from 'element-plus';import PeriodTags from '../../components/PeriodTags.vue'
+const userStore=useUserStore();const dashboard=ref({});const adjustVisible=ref(false);const adjustItem=reactive({});const adjustForm=reactive({adjustUnits:0,reason:''});const userName=computed(()=>userStore.userInfo.realName||'家庭管理员');const hour=new Date().getHours();const greeting=hour<11?'早上好':hour<14?'中午好':hour<18?'下午好':'晚上好';const todayLabel=new Intl.DateTimeFormat('zh-CN',{month:'long',day:'numeric',weekday:'long'}).format(new Date());const urgentCount=computed(()=>(dashboard.value.warningCount||0)+(dashboard.value.expiringCount||0)+(dashboard.value.pendingApprovalCount||0));const healthScore=computed(()=>Math.max(60,100-Math.min(40,urgentCount.value*3)));const priorityRisks=computed(()=>(dashboard.value.warningList||[]).slice().sort((a,b)=>Number(a.remainingDays)-Number(b.remainingDays)).slice(0,6));const expiringPageData=computed(()=>(dashboard.value.expiringList||[]).slice(0,6));const parsePeriods=v=>{if(!v)return[];try{return JSON.parse(v)}catch{return[]}};const parseDeducted=v=>{if(!v)return[];try{return JSON.parse(v)}catch{return[]}};const openAdjust=item=>{Object.assign(adjustItem,item);adjustForm.adjustUnits=0;adjustForm.reason='';adjustVisible.value=true};const load=async()=>{try{const res=await getAdminDashboard();dashboard.value=res.data||{};localStorage.setItem('dashboardCache',JSON.stringify(res.data))}catch(e){const cached=localStorage.getItem('dashboardCache');if(cached){dashboard.value=JSON.parse(cached);ElMessage.warning('网络异常，当前展示上次缓存数据')}}};const handleAdjust=async()=>{if(!adjustForm.adjustUnits)return ElMessage.warning('调整量不能为0');if(!adjustForm.reason.trim())return ElMessage.warning('请填写调整原因');await manualAdjustStock(adjustItem.stockId,adjustForm.adjustUnits,adjustForm.reason);ElMessage.success('库存修正成功');adjustVisible.value=false;load()};onMounted(load)
 </script>
 
 <style scoped>
-.warning-card {
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  border: 1px solid #E6A23C;
-  background: #FDF6EC;
-}
-.warning-card-danger {
-  border-color: #F56C6C;
-  background: #FEF0F0;
-}
-.warning-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.warning-card-name {
-  font-weight: bold;
-  font-size: 14px;
-}
-.warning-card-body {
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-}
+.dashboard-page{max-width:1580px;margin:auto;color:#173841}.welcome-panel{position:relative;min-height:190px;display:flex;align-items:center;gap:28px;padding:28px 34px;margin-bottom:16px;overflow:hidden;border-radius:19px;color:#fff;background:radial-gradient(circle at 78% 20%,rgba(66,221,171,.24),transparent 25%),linear-gradient(125deg,#102f38,#0b615d 62%,#168469);box-shadow:0 14px 35px rgba(14,64,67,.15)}.welcome-copy{position:relative;z-index:2;flex:1}.welcome-copy>span{color:#92d0c8;font-size:10px;letter-spacing:1.5px}.welcome-copy h1{margin:8px 0 5px;font-size:27px}.welcome-copy p{margin:0;color:#c3dedd;font-size:13px}.welcome-copy p b{color:#fff}.welcome-actions{display:flex;gap:9px;margin-top:20px}.welcome-actions :deep(.el-button--primary){color:#0b6757;background:#fff;border:0}.welcome-actions :deep(.el-button.is-plain){color:#fff;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25)}.health-score{position:relative;z-index:2;text-align:center}.score-ring{width:112px;height:112px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(#65e0b0 var(--score),rgba(255,255,255,.14) 0)}.score-ring>span{width:91px;height:91px;display:grid;place-items:center;align-content:center;border-radius:50%;background:#145452}.score-ring strong,.score-ring small{display:block}.score-ring strong{font-size:30px}.score-ring small{color:#a9d5d0;font-size:9px}.health-score p{margin:7px 0 0;color:#b9d8d4;font-size:10px}.welcome-orbit{position:absolute;border:1px solid rgba(255,255,255,.08);border-radius:50%}.orbit-a{width:280px;height:280px;right:-80px;top:-150px}.orbit-b{width:190px;height:190px;right:120px;bottom:-150px}.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:14px}.metric-grid article{position:relative;display:flex;align-items:center;gap:12px;padding:17px;border:1px solid #e3eaeb;border-radius:15px;background:#fff;cursor:pointer;transition:.2s}.metric-grid article:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(21,52,61,.07)}.metric-icon{width:43px;height:43px;display:grid;place-items:center;border-radius:13px;font-size:20px}.metric-icon.green{color:#0d8e6e;background:#e8f7f1}.metric-icon.amber{color:#b57418;background:#fff2dc}.metric-icon.blue{color:#387da7;background:#eaf3f9}.metric-icon.purple{color:#745ca6;background:#f0ecf8}.metric-grid small,.metric-grid strong,.metric-grid em{display:block}.metric-grid small{color:#788b90;font-size:10px}.metric-grid strong{margin:3px 0;color:#153740;font-size:24px}.metric-grid em{color:#9aa7aa;font-size:9px;font-style:normal}.metric-trend{position:absolute;right:13px;top:13px;color:#6e9187;font-size:9px;font-style:normal}.metric-trend.danger{color:#cf654e}.workspace-grid,.lower-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.8fr);gap:14px;margin-bottom:14px}.focus-card,.action-card,.lower-grid>.el-card{border:1px solid #e3eaeb;border-radius:16px}.card-heading{display:flex;align-items:center;justify-content:space-between}.card-heading span,.card-heading b{display:block}.card-heading span{color:#0b8a70;font-size:9px;font-weight:800;letter-spacing:1.3px}.card-heading b{margin-top:4px;color:#25464e;font-size:14px}.risk-queue article{display:grid;grid-template-columns:43px minmax(150px,1fr) auto 52px 18px;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid #edf1f2;cursor:pointer}.risk-queue article:hover{background:#f7fbfa}.risk-rank{padding:4px 6px;border-radius:7px;font-size:9px;text-align:center}.risk-rank.critical{color:#c8503d;background:#fbe9e6}.risk-rank.warning{color:#ae7018;background:#fff0d7}.risk-queue b{font-size:12px}.risk-queue p{margin:3px 0 0;color:#8d9b9e;font-size:9px}.remaining{color:#d35f49;font-size:18px;text-align:right}.remaining small{font-size:9px}.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.action-grid button{display:grid;grid-template-columns:35px 1fr;column-gap:9px;padding:11px;border:1px solid #e7edee;border-radius:11px;color:#294950;background:#fff;cursor:pointer;text-align:left}.action-grid button:hover{border-color:#bae0d6;background:#f4faf8}.action-grid button>span{grid-row:span 2;width:34px;height:34px;display:grid;place-items:center;border-radius:10px;color:#0c8a6f;background:#eaf7f3}.action-grid b{font-size:11px}.action-grid small{color:#94a2a5;font-size:8px}.plain-table :deep(th.el-table__cell){background:#f6f9f9}.date-pill{padding:4px 7px;border-radius:7px;color:#a76c1f;background:#fff1dc;font-size:10px}.capability-list>div{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #edf1f2}.capability-list>div:last-child{border:0}.capability-list .done{color:#12a778}.capability-list p{flex:1;margin:0}.capability-list b,.capability-list small{display:block}.capability-list b{color:#37545b;font-size:11px}.capability-list small{margin-top:3px;color:#95a2a5;font-size:9px}.capability-list em{padding:3px 6px;border-radius:7px;color:#168163;background:#eaf7f2;font-size:9px;font-style:normal}.form-help{width:100%;margin-top:4px;color:#93a0a3;font-size:10px}@media(max-width:1050px){.metric-grid{grid-template-columns:1fr 1fr}.workspace-grid,.lower-grid{grid-template-columns:1fr}}@media(max-width:760px){.welcome-panel{align-items:flex-start;padding:22px;min-height:220px}.welcome-copy h1{font-size:22px}.health-score{display:none}.metric-grid{gap:8px}.metric-grid article{padding:12px}.metric-icon,.metric-trend{display:none}.workspace-grid{display:block}.action-card{margin-top:12px}.risk-queue article{grid-template-columns:40px 1fr 44px}.risk-queue article>.period-tags,.risk-queue article>i{display:none}.lower-grid{display:block}.lower-grid>.el-card+ .el-card{margin-top:12px}}
 </style>

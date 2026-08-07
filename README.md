@@ -1,6 +1,8 @@
-# DSMS 家庭慢病用药管理系统
+# 康联云 · 家庭药事协同平台（DSMS）
 
-本项目由 Vue 3 前端、Spring Boot 后端和 MySQL 组成。药品库存、购药记录和审批数据均保存在 MySQL，不能只部署前端。
+本项目由 Vue 3、Spring Boot 和 MySQL 组成，面向长期慢病家庭，覆盖用药方案、库存风险、购药申请、远程代购、物流、收货逐项核验、资金台账、费用凭证和多维统计。药品库存、购药记录和审批数据均保存在 MySQL，不能只部署前端。
+
+产品设计、功能地图与简历亮点见 [docs/PRODUCT_DESIGN_AND_PORTFOLIO.md](docs/PRODUCT_DESIGN_AND_PORTFOLIO.md)。企业工作台版本的完整发版步骤见 [docs/RELEASE_20260808_ENTERPRISE_CONSOLE.md](docs/RELEASE_20260808_ENTERPRISE_CONSOLE.md)。
 
 ## 本地启动
 

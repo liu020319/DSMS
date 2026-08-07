@@ -9,7 +9,7 @@
         <el-button v-if="isMobile" text class="menu-button" @click="mobileNavVisible = true"><el-icon><Menu /></el-icon></el-button>
         <div class="page-heading">
           <span>{{ $route.meta.title || '首页' }}</span>
-          <small v-if="!isMobile">安康药管家 · 安心用药端</small>
+          <small v-if="!isMobile">康联云 · 安心用药端</small>
         </div>
         <el-dropdown trigger="click">
           <div class="user-entry">

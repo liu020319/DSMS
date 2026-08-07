@@ -4,7 +4,7 @@
       <div class="brand-content">
         <div class="brand-badge"><el-icon><FirstAidKit /></el-icon></div>
         <p class="eyebrow">FAMILY MEDICATION CARE</p>
-        <h1>安康药管家</h1>
+        <h1>康联云</h1>
         <p class="brand-subtitle">让每一次买药、收药和用药，都有人认真守护。</p>
         <div class="role-cards">
           <div><el-icon><House /></el-icon><span><b>家庭守护端</b><small>代购、物流、资金与异常处理</small></span></div>
@@ -21,7 +21,7 @@
 
     <main class="form-panel">
       <div class="login-card">
-        <div class="mobile-brand"><span>安</span><div><b>安康药管家</b><small>家庭慢病用药安全管理</small></div></div>
+        <div class="mobile-brand"><span>康</span><div><b>康联云</b><small>家庭药事协同平台</small></div></div>
         <header><span>安全登录</span><h2>欢迎回来</h2><p>请使用家庭管理员为您设置的账号登录</p></header>
 
         <el-alert v-if="loginError" :title="loginError" :type="lockRemaining > 0 ? 'error' : 'warning'" :closable="false" show-icon class="login-alert" />

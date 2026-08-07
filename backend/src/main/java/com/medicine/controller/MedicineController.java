@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/medicine")
@@ -66,9 +67,22 @@ public class MedicineController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String approvalNumber,
+            @RequestParam(required = false) Integer status,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(medicineService.pageList(current, size, keyword, approvalNumber));
+        return Result.success(medicineService.pageList(current, size, keyword, approvalNumber, status));
+    }
+
+    @GetMapping("/overview")
+    public Result<Map<String, Object>> overview(HttpServletRequest request) {
+        accessControl.requireAdmin(request);
+        return Result.success(medicineService.getOverview());
+    }
+
+    @GetMapping("/{id}/profile")
+    public Result<Map<String, Object>> profile(@PathVariable("id") Long id, HttpServletRequest request) {
+        accessControl.requireAdmin(request);
+        return Result.success(medicineService.getProfile(id));
     }
 
     @GetMapping("/list")

@@ -12,6 +12,14 @@ export function getMedicineById(id) {
   return request.get('/medicine/' + id)
 }
 
+export function getMedicineOverview() {
+  return request.get('/medicine/overview')
+}
+
+export function getMedicineProfile(id) {
+  return request.get('/medicine/' + id + '/profile')
+}
+
 export function addMedicine(data) {
   return request.post('/medicine/add', data)
 }

@@ -2,7 +2,7 @@
   <div class="nav-shell">
     <div class="nav-brand">
       <div class="brand-mark"><el-icon><FirstAidKit /></el-icon></div>
-      <div><strong>安康药管家</strong><span>安心用药端</span></div>
+      <div><strong>康联云</strong><span>安心用药端</span></div>
     </div>
     <el-menu :default-active="activePath" router @select="$emit('navigate')">
       <el-menu-item index="/elder/dashboard"><el-icon><HomeFilled /></el-icon><span>首页</span></el-menu-item>
