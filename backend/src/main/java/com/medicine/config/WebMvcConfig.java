@@ -2,6 +2,7 @@ package com.medicine.config;
 
 import com.medicine.interceptor.JwtAuthenticationInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -13,10 +14,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired
     private JwtAuthenticationInterceptor jwtAuthenticationInterceptor;
 
+    @Value("${security.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
+    private String allowedOrigins;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+                .allowedOrigins(java.util.Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim).filter(value -> !value.isEmpty()).toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
@@ -29,11 +34,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/auth/login",
+                        "/auth/human-challenge",
+                        "/auth/human-challenge/verify",
                         "/error",
                         "/doc.html",
                         "/webjars/**",
-                        "/swagger-resources/**",
-                        "/uploads/**"
+                        "/swagger-resources/**"
                 );
     }
 }

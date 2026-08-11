@@ -6,6 +6,8 @@ backend/*.jar
 backend/*.war
 backend/*.class
 backend/*.log
+backend/uploads/
+backend/logs/
 backend/.mvn/
 backend/mvnw
 backend/mvnw.cmd
@@ -54,7 +56,13 @@ Thumbs.db
 # ========================
 # 编译产物和临时文件
 # ========================
+.m2/
+.npm-cache/
+.vite-preview*.log
 *.pyc
 __pycache__/
 *.bak
 *.tmp
+
+# 本机部署私有数据（账号、邮箱等），禁止提交到 Git
+.private/

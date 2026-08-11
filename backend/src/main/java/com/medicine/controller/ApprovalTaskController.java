@@ -49,7 +49,7 @@ public class ApprovalTaskController {
                                 @RequestParam(required = false) String comment,
                                 HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        approvalTaskService.approveTask(id, comment, getUserId(request));
+        approvalTaskService.approveTask(id, comment, effectiveHandlerId(id, request));
         sysLogService.log(getUserId(request), "APPROVE_TASK", "审批通过ID: " + id, request.getRemoteAddr());
         return Result.success();
     }
@@ -59,7 +59,7 @@ public class ApprovalTaskController {
                                @RequestParam(required = false) String comment,
                                HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        approvalTaskService.rejectTask(id, comment, getUserId(request));
+        approvalTaskService.rejectTask(id, comment, effectiveHandlerId(id, request));
         sysLogService.log(getUserId(request), "REJECT_TASK", "审批驳回ID: " + id, request.getRemoteAddr());
         return Result.success();
     }
@@ -70,7 +70,7 @@ public class ApprovalTaskController {
                                          @RequestParam(required = false) String comment,
                                          HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        approvalTaskService.modifyAndApproveTask(id, modifiedDto, comment, getUserId(request));
+        approvalTaskService.modifyAndApproveTask(id, modifiedDto, comment, effectiveHandlerId(id, request));
         sysLogService.log(getUserId(request), "MODIFY_APPROVE_TASK", "修改并审批通过ID: " + id, request.getRemoteAddr());
         return Result.success();
     }
@@ -82,7 +82,8 @@ public class ApprovalTaskController {
             @RequestParam(required = false) Long handlerId,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(approvalTaskService.pagePending(current, size, handlerId));
+        return Result.success(approvalTaskService.pagePending(current, size,
+                accessControl.isSystemAdmin(request) ? null : getUserId(request)));
     }
 
     @GetMapping("/my")
@@ -101,19 +102,32 @@ public class ApprovalTaskController {
             @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(approvalTaskService.pageAll(current, size));
+        return Result.success(approvalTaskService.pageAll(current, size,
+                accessControl.isSystemAdmin(request) ? null : getUserId(request)));
     }
 
     @GetMapping("/{id}")
     public Result<ApprovalTask> getById(@PathVariable("id") Long id, HttpServletRequest request) {
         ApprovalTask task = approvalTaskService.getById(id);
         if (task != null) {
-            accessControl.requireOwnerOrAdmin(request, task.getApplicantId());
+            Long currentUserId = getUserId(request);
+            if (!accessControl.isSystemAdmin(request)
+                    && ("GUARDIAN".equals(request.getAttribute("role")))
+                    && !currentUserId.equals(task.getHandlerId())) {
+                throw new BusinessException(403, "无权查看其他家庭的申请");
+            }
+            if ("ELDER".equals(request.getAttribute("role"))) accessControl.requireOwnerOrAdmin(request, task.getApplicantId());
         }
         return Result.success(task);
     }
 
     private Long getUserId(HttpServletRequest request) {
         return (Long) request.getAttribute("userId");
+    }
+
+    private Long effectiveHandlerId(Long taskId, HttpServletRequest request) {
+        if (!accessControl.isSystemAdmin(request)) return getUserId(request);
+        ApprovalTask task = approvalTaskService.getById(taskId);
+        return task != null && task.getHandlerId() != null ? task.getHandlerId() : getUserId(request);
     }
 }

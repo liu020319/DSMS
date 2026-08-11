@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.medicine.entity.PurchaseRecord;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +21,12 @@ public interface PurchaseRecordMapper extends BaseMapper<PurchaseRecord> {
             "WHERE pr.deleted = 0 ORDER BY pr.purchase_date DESC")
     List<Map<String, Object>> selectPurchaseWithDetail();
 
-    List<Map<String, Object>> selectMonthlyStatsDynamic(Long userId);
-    List<Map<String, Object>> selectDailyStatsDynamic(Long userId, String startDate);
-    List<Map<String, Object>> selectYearlyStatsDynamic(Long userId);
+    List<Map<String, Object>> selectMonthlyStatsDynamic(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
+    List<Map<String, Object>> selectDailyStatsDynamic(@Param("userId") Long userId, @Param("startDate") String startDate, @Param("allowedUserIds") List<Long> allowedUserIds);
+    List<Map<String, Object>> selectYearlyStatsDynamic(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
+    List<Map<String, Object>> selectWeeklyStatsDynamic(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
+    List<Map<String, Object>> selectPlatformStatsDynamic(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
+    List<Map<String, Object>> selectChannelStatsDynamic(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
+    List<Map<String, Object>> selectTimeBucketStatsDynamic(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
+    Map<String, Object> selectExpenseSummary(@Param("userId") Long userId, @Param("allowedUserIds") List<Long> allowedUserIds);
 }

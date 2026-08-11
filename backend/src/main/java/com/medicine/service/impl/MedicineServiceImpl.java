@@ -13,6 +13,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 public class MedicineServiceImpl extends ServiceImpl<MedicineMapper, Medicine> implements MedicineService {
@@ -73,7 +75,7 @@ public class MedicineServiceImpl extends ServiceImpl<MedicineMapper, Medicine> i
     }
 
     @Override
-    public Page<Medicine> pageList(int current, int size, String keyword, String approvalNumber) {
+    public Page<Medicine> pageList(int current, int size, String keyword, String approvalNumber, Integer status) {
         Page<Medicine> page = new Page<>(current, size);
         LambdaQueryWrapper<Medicine> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isEmpty()) {
@@ -82,8 +84,9 @@ public class MedicineServiceImpl extends ServiceImpl<MedicineMapper, Medicine> i
                     .or().like(Medicine::getManufacturer, keyword));
         }
         if (approvalNumber != null && !approvalNumber.isEmpty()) {
-            wrapper.eq(Medicine::getApprovalNumber, approvalNumber);
+            wrapper.like(Medicine::getApprovalNumber, approvalNumber);
         }
+        if (status != null) wrapper.eq(Medicine::getStatus, status);
         wrapper.orderByDesc(Medicine::getCreateTime);
         return page(page, wrapper);
     }
@@ -94,5 +97,22 @@ public class MedicineServiceImpl extends ServiceImpl<MedicineMapper, Medicine> i
         wrapper.eq(Medicine::getStatus, 1)
                .orderByAsc(Medicine::getMedicineName);
         return list(wrapper);
+    }
+
+    @Override
+    public Map<String, Object> getOverview() {
+        return baseMapper.selectMedicineSummary();
+    }
+
+    @Override
+    public Map<String, Object> getProfile(Long medicineId) {
+        Medicine medicine = getById(medicineId);
+        if (medicine == null) throw new BusinessException("药品不存在");
+        Map<String, Object> profile = new LinkedHashMap<>();
+        profile.put("medicine", medicine);
+        profile.put("stats", baseMapper.selectMedicineProfileStats(medicineId));
+        profile.put("relatedUsers", baseMapper.selectRelatedUsers(medicineId));
+        profile.put("recentPurchases", baseMapper.selectRecentPurchases(medicineId));
+        return profile;
     }
 }

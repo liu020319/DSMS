@@ -2,13 +2,13 @@
   <div>
     <el-card style="margin-bottom: 20px">
       <el-row :gutter="10" align="middle">
-        <el-col :span="6">
+        <el-col :xs="24" :sm="6">
           <el-input v-model="search.realName" placeholder="输入用户名搜索(如:王大爷)" clearable @clear="loadData" @keyup.enter="loadData" />
         </el-col>
-        <el-col :span="4">
+        <el-col :xs="12" :sm="4">
           <el-button type="primary" @click="loadData">查询</el-button>
         </el-col>
-        <el-col :span="14" style="text-align: right">
+        <el-col :xs="12" :sm="14" style="text-align: right">
           <el-button type="success" @click="handleAdd">新增方案</el-button>
         </el-col>
       </el-row>
@@ -60,12 +60,18 @@
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '在用' : '停用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" :width="isMobile ? 88 : 230" :fixed="isMobile ? false : 'right'">
           <template #default="{ row }">
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" @click="handleHistory(row)">历史</el-button>
-            <el-button size="small" type="danger" v-if="row.status === 1" @click="handleStop(row)">停用</el-button>
-            <el-button size="small" type="success" v-if="row.status === 0" @click="handleEnable(row)">启用</el-button>
+            <template v-if="!isMobile">
+              <el-button size="small" @click="handleEdit(row)">编辑</el-button>
+              <el-button size="small" @click="handleHistory(row)">历史</el-button>
+              <el-button size="small" type="danger" v-if="row.status === 1" @click="handleStop(row)">停用</el-button>
+              <el-button size="small" type="success" v-if="row.status === 0" @click="handleEnable(row)">启用</el-button>
+            </template>
+            <el-dropdown v-else trigger="click" @command="command => handleMobileAction(command, row)">
+              <el-button size="small" type="primary" plain>操作<el-icon><ArrowDown /></el-icon></el-button>
+              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">编辑</el-dropdown-item><el-dropdown-item command="history">历史</el-dropdown-item><el-dropdown-item :command="row.status===1?'stop':'enable'" :divided="true">{{ row.status===1?'停用':'启用' }}</el-dropdown-item></el-dropdown-menu></template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -174,8 +180,10 @@ import { getMedicineList } from '../../api/medicine'
 import { getUserList } from '../../api/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PeriodTags from '../../components/PeriodTags.vue'
+import { useMobile } from '../../composables/useMobile'
 
-const roleMap = { ADMIN: '管理员', ELDER: '父母', CHILD: '子女' }
+const roleMap = { ADMIN: '平台管理员', GUARDIAN: '家庭守护人', ELDER: '安心用药成员' }
+const isMobile = useMobile()
 
 const tableData = ref([])
 const userList = ref([])
@@ -351,6 +359,13 @@ const handleHistory = async (row) => {
   historyVisible.value = true
 }
 
+const handleMobileAction = (command, row) => {
+  if (command === 'edit') return handleEdit(row)
+  if (command === 'history') return handleHistory(row)
+  if (command === 'stop') return handleStop(row)
+  if (command === 'enable') return handleEnable(row)
+}
+
 onMounted(async () => {
   const [uRes, mRes] = await Promise.all([getUserList(), getMedicineList()])
   userList.value = uRes.data
@@ -358,3 +373,14 @@ onMounted(async () => {
   loadData()
 })
 </script>
+
+<style scoped>
+@media(max-width:760px){
+  :deep(.el-row){row-gap:10px}
+  :deep(.el-form){--el-form-label-font-size:14px}
+  :deep(.el-form-item){display:block}
+  :deep(.el-form-item__label){width:auto!important;justify-content:flex-start;margin-bottom:5px}
+  :deep(.el-form-item__content){margin-left:0!important}
+  :deep(.el-pagination){justify-content:center!important;flex-wrap:wrap;gap:5px}
+}
+</style>

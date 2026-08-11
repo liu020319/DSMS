@@ -9,4 +9,6 @@ public class LoginDTO {
     private String username;
     @NotBlank(message = "密码不能为空")
     private String password;
+    @NotBlank(message = "请先完成人机验证")
+    private String humanToken;
 }

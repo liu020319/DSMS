@@ -1,6 +1,7 @@
 package com.medicine.exception;
 
 import com.medicine.common.BusinessException;
+import com.medicine.common.AccountLockedException;
 import com.medicine.common.Result;
 import javax.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -8,10 +9,20 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccountLockedException.class)
+    public Result<Map<String, Object>> handleAccountLockedException(AccountLockedException e) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("lockedUntil", e.getLockedUntil());
+        data.put("remainingSeconds", e.getRemainingSeconds());
+        return Result.error(423, e.getMessage(), data);
+    }
 
     @ExceptionHandler(BusinessException.class)
     public Result<?> handleBusinessException(BusinessException e, HttpServletRequest request) {

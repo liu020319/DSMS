@@ -1,7 +1,6 @@
 package com.medicine.service.impl;
 
 import com.medicine.service.DashboardService;
-import com.medicine.service.StockDeductionService;
 import com.medicine.service.StockService;
 import com.medicine.vo.DashboardVO;
 import com.medicine.vo.StockVO;
@@ -16,15 +15,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class DashboardServiceImpl implements DashboardService {
 
     @Autowired
     private StockService stockService;
-
-    @Autowired
-    private StockDeductionService stockDeductionService;
 
     @Autowired
     private MedicineMapper medicineMapper;
@@ -36,32 +33,44 @@ public class DashboardServiceImpl implements DashboardService {
     private ApprovalTaskMapper approvalTaskMapper;
 
     @Override
-    public DashboardVO getAdminDashboard() {
-        // 首页刷新时调用分时段扣减算法
-        stockDeductionService.deductAllWithPeriod();
+    public DashboardVO getAdminDashboard(List<Long> allowedUserIds, Long handlerId) {
         DashboardVO vo = new DashboardVO();
         LambdaQueryWrapper<Medicine> mWrapper = new LambdaQueryWrapper<>();
         mWrapper.eq(Medicine::getStatus, 1);
         vo.setTotalMedicines(medicineMapper.selectCount(mWrapper));
         LambdaQueryWrapper<Prescription> pWrapper = new LambdaQueryWrapper<>();
         pWrapper.eq(Prescription::getStatus, 1);
-        vo.setActivePrescriptions(prescriptionMapper.selectCount(pWrapper));
-        List<StockVO> warningList = stockService.getWarningList(null);
+        if (allowedUserIds != null) {
+            if (allowedUserIds.isEmpty()) vo.setActivePrescriptions(0L);
+            else {
+                pWrapper.in(Prescription::getUserId, allowedUserIds);
+                vo.setActivePrescriptions(prescriptionMapper.selectCount(pWrapper));
+            }
+        } else vo.setActivePrescriptions(prescriptionMapper.selectCount(pWrapper));
+        List<StockVO> warningList = scopedStocks(allowedUserIds, true);
         vo.setWarningCount((long) warningList.size());
         vo.setWarningList(warningList);
-        List<StockVO> expiringList = stockService.getExpiringList(null);
+        List<StockVO> expiringList = scopedStocks(allowedUserIds, false);
         vo.setExpiringCount((long) expiringList.size());
         vo.setExpiringList(expiringList);
         LambdaQueryWrapper<ApprovalTask> aWrapper = new LambdaQueryWrapper<>();
         aWrapper.eq(ApprovalTask::getStatus, "PENDING");
+        if (handlerId != null) aWrapper.eq(ApprovalTask::getHandlerId, handlerId);
         vo.setPendingApprovalCount(approvalTaskMapper.selectCount(aWrapper));
         return vo;
     }
 
+    private List<StockVO> scopedStocks(List<Long> allowedUserIds, boolean warning) {
+        if (allowedUserIds == null) return warning ? stockService.getWarningList(null) : stockService.getExpiringList(null);
+        List<StockVO> result = new ArrayList<>();
+        for (Long userId : allowedUserIds) {
+            result.addAll(warning ? stockService.getWarningList(userId) : stockService.getExpiringList(userId));
+        }
+        return result;
+    }
+
     @Override
     public DashboardVO getElderDashboard(Long userId) {
-        // 首页刷新时调用分时段扣减算法
-        stockDeductionService.deductAllByUserIdWithPeriod(userId);
         DashboardVO vo = new DashboardVO();
         LambdaQueryWrapper<Prescription> pWrapper = new LambdaQueryWrapper<>();
         pWrapper.eq(Prescription::getUserId, userId).eq(Prescription::getStatus, 1);

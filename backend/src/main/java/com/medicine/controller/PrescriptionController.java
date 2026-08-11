@@ -30,6 +30,7 @@ public class PrescriptionController {
     @PostMapping("/add")
     public Result<Void> add(@Valid @RequestBody PrescriptionDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        accessControl.requireOwnerOrAdmin(request, dto.getUserId());
         prescriptionService.addPrescription(dto);
         sysLogService.log(getUserId(request), "新增用药方案", "新增用药方案", request.getRemoteAddr());
         return Result.success();
@@ -40,6 +41,9 @@ public class PrescriptionController {
                                @RequestParam(required = false) String changeReason,
                                HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PrescriptionVO current = prescriptionService.getDetail(dto.getPrescriptionId());
+        if (current != null) accessControl.requireOwnerOrAdmin(request, current.getUserId());
+        accessControl.requireOwnerOrAdmin(request, dto.getUserId());
         prescriptionService.updatePrescription(dto, changeReason);
         sysLogService.log(getUserId(request), "修改用药方案", "修改用药方案，编号: " + dto.getPrescriptionId(), request.getRemoteAddr());
         return Result.success();
@@ -48,6 +52,8 @@ public class PrescriptionController {
     @PutMapping("/stop/{id}")
     public Result<Void> stop(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PrescriptionVO current = prescriptionService.getDetail(id);
+        if (current != null) accessControl.requireOwnerOrAdmin(request, current.getUserId());
         prescriptionService.stopPrescription(id);
         sysLogService.log(getUserId(request), "停用用药方案", "停用用药方案，编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -56,6 +62,8 @@ public class PrescriptionController {
     @PutMapping("/enable/{id}")
     public Result<Void> enable(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PrescriptionVO current = prescriptionService.getDetail(id);
+        if (current != null) accessControl.requireOwnerOrAdmin(request, current.getUserId());
         prescriptionService.enablePrescription(id);
         sysLogService.log(getUserId(request), "启用用药方案", "启用用药方案，编号: " + id, request.getRemoteAddr());
         return Result.success();
@@ -70,7 +78,8 @@ public class PrescriptionController {
             @RequestParam(required = false) String realName,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(prescriptionService.pageList(current, size, userId, medicineId, realName));
+        return Result.success(prescriptionService.pageList(current, size, userId, medicineId, realName,
+                accessControl.scopedUserIds(request, userId)));
     }
 
     @GetMapping("/list/{userId}")
@@ -82,12 +91,16 @@ public class PrescriptionController {
     @GetMapping("/detail/{id}")
     public Result<PrescriptionVO> detail(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(prescriptionService.getDetail(id));
+        PrescriptionVO detail = prescriptionService.getDetail(id);
+        if (detail != null) accessControl.requireOwnerOrAdmin(request, detail.getUserId());
+        return Result.success(detail);
     }
 
     @GetMapping("/history/{id}")
     public Result<List<PrescriptionVO>> history(@PathVariable("id") Long id, HttpServletRequest request) {
         accessControl.requireAdmin(request);
+        PrescriptionVO detail = prescriptionService.getDetail(id);
+        if (detail != null) accessControl.requireOwnerOrAdmin(request, detail.getUserId());
         return Result.success(prescriptionService.getHistory(id));
     }
 

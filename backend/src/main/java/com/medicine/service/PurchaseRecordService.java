@@ -11,9 +11,15 @@ public interface PurchaseRecordService extends IService<PurchaseRecord> {
     void updatePurchaseRecord(com.medicine.dto.PurchaseRecordDTO dto);
     void deletePurchaseRecord(Long purchaseId);
     void confirmReceipt(Long purchaseId);
-    com.baomidou.mybatisplus.extension.plugins.pagination.Page<PurchaseRecordVO> pageList(int current, int size, Long userId, Long prescriptionId, String approvalNumber);
-    List<Map<String, Object>> getMonthlyStats(Long userId);
-    List<Map<String, Object>> getDailyStats(Long userId, String startDate);
-    List<Map<String, Object>> getYearlyStats(Long userId);
-    List<PurchaseRecordVO> listForExport(Long userId);
+    void confirmFamilyReceipt(Long purchaseId);
+    com.baomidou.mybatisplus.extension.plugins.pagination.Page<PurchaseRecordVO> pageList(int current, int size, Long userId, Long prescriptionId, String approvalNumber, List<Long> allowedUserIds);
+    List<Map<String, Object>> getMonthlyStats(Long userId, List<Long> allowedUserIds);
+    List<Map<String, Object>> getDailyStats(Long userId, String startDate, List<Long> allowedUserIds);
+    List<Map<String, Object>> getYearlyStats(Long userId, List<Long> allowedUserIds);
+    List<Map<String, Object>> getWeeklyStats(Long userId, List<Long> allowedUserIds);
+    List<Map<String, Object>> getPlatformStats(Long userId, List<Long> allowedUserIds);
+    List<Map<String, Object>> getChannelStats(Long userId, List<Long> allowedUserIds);
+    List<Map<String, Object>> getTimeBucketStats(Long userId, List<Long> allowedUserIds);
+    Map<String, Object> getExpenseSummary(Long userId, List<Long> allowedUserIds);
+    List<PurchaseRecordVO> listForExport(Long userId, List<Long> allowedUserIds);
 }

@@ -31,3 +31,9 @@ export function getDailyStats(userId, days) {
 export function getYearlyStats(userId) {
   return request.get('/purchase/stats/yearly', { params: { userId } })
 }
+
+export const getWeeklyStats = userId => request.get('/purchase/stats/weekly', { params: { userId } })
+export const getPlatformStats = userId => request.get('/purchase/stats/platform', { params: { userId } })
+export const getChannelStats = userId => request.get('/purchase/stats/channel', { params: { userId } })
+export const getTimeBucketStats = userId => request.get('/purchase/stats/time-bucket', { params: { userId } })
+export const getExpenseSummary = userId => request.get('/purchase/stats/summary', { params: { userId } })
