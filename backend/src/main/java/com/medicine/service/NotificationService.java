@@ -12,9 +12,13 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Executor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class NotificationService {
     @Autowired private UserNotificationMapper notificationMapper;
     @Autowired private SysUserMapper userMapper;
@@ -35,7 +39,14 @@ public class NotificationService {
         n.setEmailStatus(mailEnabled ? "PENDING" : "DISABLED");
         notificationMapper.insert(n);
         if (mailEnabled) {
-            Runnable dispatch = () -> taskExecutor.execute(() -> sendEmail(n.getNotificationId()));
+            Runnable dispatch = () -> {
+                try {
+                    taskExecutor.execute(() -> sendEmail(n.getNotificationId()));
+                } catch (RuntimeException ex) {
+                    markDeliveryFailure(n.getNotificationId(), "邮件任务队列暂时不可用");
+                    log.error("Failed to queue notification email, notificationId={}", n.getNotificationId(), ex);
+                }
+            };
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override public void afterCommit() { dispatch.run(); }
@@ -70,14 +81,78 @@ public class NotificationService {
                 message.setText(n.getContent() + (portalNotification
                         ? "\n\n请登录小刘云软件服务中心查看详情。"
                         : "\n\n请登录家庭慢病用药管理系统查看详情。"));
-                mailSender.send(message);
+                sendWithRetry(message, notificationId);
                 n.setEmailStatus("SENT");
                 n.setEmailError(null);
             }
         } catch (Exception ex) {
             n.setEmailStatus("FAILED");
             n.setEmailError(ex.getMessage() == null ? "邮件发送失败" : ex.getMessage().substring(0, Math.min(500, ex.getMessage().length())));
+            log.error("Notification email failed, notificationId={}, errorType={}",
+                    notificationId, ex.getClass().getSimpleName());
         }
         notificationMapper.updateById(n);
+    }
+
+    public Map<String, Object> mailDiagnostics() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("enabled", mailEnabled);
+        result.put("senderConfigured", mailFrom != null && !mailFrom.trim().isEmpty());
+        result.put("recipientConfigured", defaultRecipient != null && !defaultRecipient.trim().isEmpty());
+        result.put("ready", mailEnabled && mailSender != null
+                && mailFrom != null && !mailFrom.trim().isEmpty()
+                && defaultRecipient != null && !defaultRecipient.trim().isEmpty());
+        return result;
+    }
+
+    public Map<String, Object> sendTestEmail(Long recipientId) {
+        UserNotification notification = new UserNotification();
+        notification.setRecipientId(recipientId);
+        notification.setTitle("邮件提醒链路测试");
+        notification.setContent("如果你收到这封邮件，说明 DSMS 的 SMTP 配置、异步通知和收件地址均可用。");
+        notification.setBizType("SOFTWARE_SERVICE_MAIL_TEST");
+        notification.setReadStatus(0);
+        notification.setEmailStatus(mailEnabled ? "PENDING" : "DISABLED");
+        notificationMapper.insert(notification);
+        if (mailEnabled) sendEmail(notification.getNotificationId());
+        UserNotification latest = notificationMapper.selectById(notification.getNotificationId());
+        Map<String, Object> result = mailDiagnostics();
+        result.put("notificationId", notification.getNotificationId());
+        result.put("emailStatus", latest == null ? notification.getEmailStatus() : latest.getEmailStatus());
+        result.put("emailError", latest != null && "FAILED".equals(latest.getEmailStatus())
+                ? "发送失败，请查看服务器日志" : (latest == null ? null : latest.getEmailError()));
+        return result;
+    }
+
+    private void sendWithRetry(SimpleMailMessage message, Long notificationId) {
+        RuntimeException lastFailure = null;
+        long[] waits = {0L, 1000L, 3000L};
+        for (int attempt = 0; attempt < waits.length; attempt++) {
+            if (waits[attempt] > 0) {
+                try {
+                    Thread.sleep(waits[attempt]);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("邮件发送线程被中断", ex);
+                }
+            }
+            try {
+                mailSender.send(message);
+                return;
+            } catch (RuntimeException ex) {
+                lastFailure = ex;
+                log.warn("Notification email attempt failed, notificationId={}, attempt={}, errorType={}",
+                        notificationId, attempt + 1, ex.getClass().getSimpleName());
+            }
+        }
+        throw lastFailure == null ? new IllegalStateException("邮件发送失败") : lastFailure;
+    }
+
+    private void markDeliveryFailure(Long notificationId, String reason) {
+        UserNotification notification = notificationMapper.selectById(notificationId);
+        if (notification == null) return;
+        notification.setEmailStatus("FAILED");
+        notification.setEmailError(reason);
+        notificationMapper.updateById(notification);
     }
 }

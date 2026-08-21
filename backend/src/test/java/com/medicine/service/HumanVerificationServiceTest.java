@@ -10,6 +10,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class HumanVerificationServiceTest {
 
     @Test
+    void tooFastAttemptDoesNotDestroyChallenge() throws Exception {
+        HumanVerificationService service = new HumanVerificationService();
+        HumanChallengeVO challenge = service.createChallenge("127.0.0.1");
+
+        BusinessException tooFast = assertThrows(BusinessException.class,
+                () -> service.verify(challenge.getChallengeId(), "127.0.0.1"));
+        assertEquals(429, tooFast.getCode());
+
+        Thread.sleep(650L);
+        HumanVerifyVO verified = service.verify(challenge.getChallengeId(), "127.0.0.1");
+        assertNotNull(verified.getHumanToken());
+    }
+
+    @Test
     void verificationTokenCanOnlyBeConsumedOnce() throws Exception {
         HumanVerificationService service = new HumanVerificationService();
         HumanChallengeVO challenge = service.createChallenge("127.0.0.1");

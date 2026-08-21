@@ -1,6 +1,7 @@
 <template>
   <div class="feature-page">
     <div class="page-heading"><div><p class="overline dark">SOFTWARE DELIVERY</p><h1>软件工程服务中心</h1><p>只提供合规的需求分析、开发辅导、代码实现、调试测试、部署运维与技术咨询。</p></div><el-button type="primary" size="large" @click="requestDialog=true">提交新需求</el-button></div>
+    <section v-if="isAdmin" class="panel mail-health-panel"><div><small>MAIL DELIVERY</small><h3>邮件提醒链路</h3><p>{{mailStatusText}}</p></div><div class="mail-health-actions"><span :class="mailStatus.ready?'ready':'blocked'">{{mailStatus.ready?'配置完整':'需要检查配置'}}</span><el-button text @click="loadMailStatus">刷新</el-button><el-button type="primary" :loading="mailTesting" @click="testMail">发送测试邮件</el-button></div></section>
     <section v-if="isAdmin" class="panel public-inquiry-panel"><div class="panel-head"><div><small>PUBLIC INQUIRIES</small><h3>游客咨询收件箱</h3></div><el-button text @click="loadPublicInquiries">刷新</el-button></div><div class="public-inquiry-grid"><article v-for="item in publicInquiries" :key="item.inquiryId" @click="openPublicInquiry(item.inquiryId)"><i :class="item.status.toLowerCase()">{{publicStatusNames[item.status]}}</i><h3>{{item.contactName}} · {{typeNames[item.serviceType]}}</h3><p>{{item.inquiryText}}</p><footer><span>{{item.inquiryNo}}</span><b>{{item.contactValue}}</b></footer></article></div><el-empty v-if="!publicInquiries.length" description="暂无游客咨询" :image-size="60" /></section>
     <section class="service-overview"><div><b>{{counts.all}}</b><small>全部需求</small></div><div><b>{{counts.progress}}</b><small>进行中</small></div><div><b>{{counts.delivered}}</b><small>已交付</small></div><p><strong>过程透明</strong><span>状态、报价、里程碑、问题工单均可追溯</span></p></section>
     <section class="panel"><div class="panel-head"><div><small>REQUEST PIPELINE</small><h3>需求看板</h3></div><el-select v-model="statusFilter" clearable placeholder="全部状态" @change="load"><el-option v-for="(v,k) in statusNames" :key="k" :label="v" :value="k" /></el-select></div>
@@ -27,9 +28,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { publicInquiryAdminApi, serviceApi, reportError } from '../api'
+import { mailDiagnosticsApi, publicInquiryAdminApi, serviceApi, reportError } from '../api'
 const requests=ref([]),statusFilter=ref(''),requestDialog=ref(false),detailDrawer=ref(false),milestoneDialog=ref(false),workOrderDialog=ref(false),detail=ref({})
 const publicInquiries=ref([]),publicDrawer=ref(false),publicDetail=ref({}),publicReply=ref('')
+const mailStatus=ref({enabled:false,senderConfigured:false,recipientConfigured:false,ready:false}),mailTesting=ref(false)
 const user=JSON.parse(localStorage.getItem('userInfo')||'{}'),isAdmin=user.role==='ADMIN',drawerSize=computed(()=>innerWidth<720?'100%':'min(720px,74vw)')
 const typeNames={DEVELOPMENT:'软件开发',GUIDANCE:'开发辅导',DEBUG:'调试排障',DEPLOYMENT:'部署上线',CONSULTING:'技术咨询'}
 const statusNames={SUBMITTED:'已提交',ASSESSING:'评估中',QUOTED:'已报价',IN_PROGRESS:'进行中',DELIVERED:'已交付',CLOSED:'已关闭',CANCELLED:'已取消'}
@@ -38,6 +40,7 @@ const publicStatusNames={NEW:'新咨询',CONTACTED:'沟通中',CLOSED:'已结束
 const requestForm=reactive({serviceType:'DEVELOPMENT',title:'',requirementText:'',technologyStack:'',budgetRange:'',expectedDate:null,contactChannel:''})
 const statusForm=reactive({status:'ASSESSING',quoteAmount:null,managerNote:''}),milestoneForm=reactive({milestoneName:'',milestoneDescription:'',plannedDate:null,status:'PENDING',sortNo:0}),workOrderForm=reactive({workOrderType:'QUESTION',subject:'',description:''})
 const counts=computed(()=>({all:requests.value.length,progress:requests.value.filter(x=>['ASSESSING','QUOTED','IN_PROGRESS'].includes(x.status)).length,delivered:requests.value.filter(x=>['DELIVERED','CLOSED'].includes(x.status)).length}))
+const mailStatusText=computed(()=>mailStatus.value.ready?'SMTP 发件账号与默认收件邮箱均已配置，可发送评论、联系和业务通知。':'邮件提醒尚未完整启用，请检查服务器环境文件中的开关、发件账号、应用专用密码和收件邮箱。')
 const load=async()=>{try{requests.value=(await serviceApi.requests(statusFilter.value)).data||[]}catch(e){reportError(e)}}
 const createRequest=async()=>{if(!requestForm.title.trim()||!requestForm.requirementText.trim())return ElMessage.warning('请填写标题和需求说明');try{await serviceApi.createRequest(requestForm);requestDialog.value=false;requestForm.title='';requestForm.requirementText='';await load();ElMessage.success('需求已提交')}catch(e){reportError(e)}}
 const openDetail=async id=>{try{detail.value=(await serviceApi.detail(id)).data||{};Object.assign(statusForm,{status:detail.value.request.status,quoteAmount:detail.value.request.quoteAmount,managerNote:detail.value.request.managerNote||''});detailDrawer.value=true}catch(e){reportError(e)}}
@@ -50,5 +53,7 @@ const loadPublicInquiries=async()=>{if(!isAdmin)return;try{publicInquiries.value
 const openPublicInquiry=async id=>{try{publicDetail.value=(await publicInquiryAdminApi.detail(id)).data||{};publicDrawer.value=true}catch(e){reportError(e)}}
 const replyPublicInquiry=async()=>{if(publicReply.value.trim().length<2)return ElMessage.warning('请填写回复内容');try{await publicInquiryAdminApi.reply(publicDetail.value.inquiryId,publicReply.value);publicReply.value='';await openPublicInquiry(publicDetail.value.inquiryId);await loadPublicInquiries();ElMessage.success('回复已保存，游客可用访问码查看')}catch(e){reportError(e)}}
 const closePublicInquiry=async()=>{try{await publicInquiryAdminApi.updateStatus(publicDetail.value.inquiryId,'CLOSED');await openPublicInquiry(publicDetail.value.inquiryId);await loadPublicInquiries();ElMessage.success('咨询已结束')}catch(e){reportError(e)}}
-onMounted(()=>{load();loadPublicInquiries()})
+const loadMailStatus=async()=>{if(!isAdmin)return;try{mailStatus.value=(await mailDiagnosticsApi.status()).data||mailStatus.value}catch(e){reportError(e,'邮件配置状态读取失败')}}
+const testMail=async()=>{mailTesting.value=true;try{const result=(await mailDiagnosticsApi.test()).data||{};mailStatus.value={...mailStatus.value,...result};if(result.emailStatus==='SENT')ElMessage.success('测试邮件已发送，请检查收件箱和垃圾邮件');else ElMessage.error(result.emailError||`测试邮件状态：${result.emailStatus||'未知'}`)}catch(e){reportError(e,'测试邮件发送失败')}finally{mailTesting.value=false}}
+onMounted(()=>{load();loadPublicInquiries();loadMailStatus()})
 </script>

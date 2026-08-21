@@ -75,6 +75,11 @@ export const publicInquiryAdminApi = {
   reply: (id, messageText) => api.post(`/portal/services/public-inquiries/${id}/replies`, { messageText })
 }
 
+export const mailDiagnosticsApi = {
+  status: () => api.get('/portal/system/mail/status'),
+  test: () => api.post('/portal/system/mail/test')
+}
+
 export function reportError(error, fallback = '操作失败') {
   ElMessage.error(error?.message || fallback)
 }

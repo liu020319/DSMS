@@ -32,13 +32,18 @@ public class HumanVerificationService {
 
     public HumanVerifyVO verify(String challengeId, String clientAddress) {
         cleanupExpired();
-        VerificationState state = challenges.remove(challengeId);
+        VerificationState state = challenges.get(challengeId);
         LocalDateTime now = LocalDateTime.now();
         if (state == null || state.expiresAt.isBefore(now) || !state.clientAddress.equals(clientAddress)) {
             throw new BusinessException(400, "验证已失效，请重新点击验证");
         }
         if (Duration.between(state.createdAt, now).toMillis() < MINIMUM_REACTION_MILLIS) {
-            throw new BusinessException(429, "操作过快，请稍后重新验证");
+            // 点得太快只拒绝本次动作，不销毁挑战。否则用户第一次点快后，
+            // 页面拿着已经失效的 challengeId 重试，会连续看到“验证失败”。
+            throw new BusinessException(429, "操作过快，请稍等片刻后再次点击");
+        }
+        if (!challenges.remove(challengeId, state)) {
+            throw new BusinessException(400, "验证已被使用，请重新点击验证");
         }
         String token = UUID.randomUUID().toString();
         LocalDateTime expiresAt = now.plus(TOKEN_TTL);

@@ -27,11 +27,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '../api'
+import { humanChallengeReadyAt, waitUntilHumanChallengeReady } from '../humanVerification'
 
-const router=useRouter(),confirmPassword=ref(''),verified=ref(false),verifying=ref(false),submitting=ref(false),challengeId=ref(''),errorText=ref('')
+const router=useRouter(),confirmPassword=ref(''),verified=ref(false),verifying=ref(false),submitting=ref(false),challengeId=ref(''),challengeReadyAt=ref(0),errorText=ref('')
 const form=reactive({username:'',password:'',displayName:'',inviteCode:'',humanToken:''})
-const challenge=async()=>{challengeId.value=(await authApi.challenge()).data.challengeId}
-const verify=async()=>{verifying.value=true;errorText.value='';try{if(!challengeId.value)await challenge();form.humanToken=(await authApi.verify(challengeId.value)).data.humanToken;verified.value=true}catch(e){errorText.value=e.message||'验证失败';challengeId.value='';challenge().catch(()=>{})}finally{verifying.value=false}}
-const submit=async()=>{if(!/^[A-Za-z0-9_]{4,50}$/.test(form.username))return ElMessage.warning('用户名只能是4-50位字母、数字或下划线');if(!form.displayName)return ElMessage.warning('请填写显示名称');if(form.password.length<8)return ElMessage.warning('密码至少8位');if(form.password!==confirmPassword.value)return ElMessage.warning('两次输入的密码不一致');if(!form.inviteCode)return ElMessage.warning('请输入朋友邀请码');if(!verified.value)return ElMessage.warning('请先完成人机验证');submitting.value=true;errorText.value='';try{await authApi.portalRegister({...form});ElMessage.success('账号创建成功，请登录');router.replace(`/login?registered=${encodeURIComponent(form.username)}`)}catch(e){errorText.value=e.message||'注册失败';verified.value=false;form.humanToken='';challengeId.value='';challenge().catch(()=>{})}finally{submitting.value=false}}
+const challenge=async()=>{challengeId.value=(await authApi.challenge()).data.challengeId;challengeReadyAt.value=humanChallengeReadyAt()}
+const verify=async()=>{verifying.value=true;errorText.value='';try{if(!challengeId.value)await challenge();await waitUntilHumanChallengeReady(challengeReadyAt.value);form.humanToken=(await authApi.verify(challengeId.value)).data.humanToken;verified.value=true}catch(e){errorText.value=e.message||'验证失败';if(e.code!==429){challengeId.value='';challengeReadyAt.value=0;challenge().catch(()=>{})}}finally{verifying.value=false}}
+const submit=async()=>{if(!/^[A-Za-z0-9_]{4,50}$/.test(form.username))return ElMessage.warning('用户名只能是4-50位字母、数字或下划线');if(!form.displayName)return ElMessage.warning('请填写显示名称');if(form.password.length<8)return ElMessage.warning('密码至少8位');if(form.password!==confirmPassword.value)return ElMessage.warning('两次输入的密码不一致');if(!form.inviteCode)return ElMessage.warning('请输入朋友邀请码');if(!verified.value)return ElMessage.warning('请先完成人机验证');submitting.value=true;errorText.value='';try{await authApi.portalRegister({...form});ElMessage.success('账号创建成功，请登录');router.replace(`/login?registered=${encodeURIComponent(form.username)}`)}catch(e){errorText.value=e.message||'注册失败';verified.value=false;form.humanToken='';challengeId.value='';challengeReadyAt.value=0;challenge().catch(()=>{})}finally{submitting.value=false}}
 onMounted(()=>challenge().catch(()=>{errorText.value='安全验证服务暂时不可用，请刷新重试'}))
 </script>

@@ -29,20 +29,22 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '../api'
+import { humanChallengeReadyAt, waitUntilHumanChallengeReady } from '../humanVerification'
 
 const router = useRouter()
 const route = useRoute()
 const form = reactive({ username: '', password: '', humanToken: '' })
-const challengeId = ref(''), verified = ref(false), verifying = ref(false), loading = ref(false), errorText = ref('')
-const challenge = async () => { const res = await authApi.challenge(); challengeId.value = res.data.challengeId }
+const challengeId = ref(''), challengeReadyAt = ref(0), verified = ref(false), verifying = ref(false), loading = ref(false), errorText = ref('')
+const challenge = async () => { const res = await authApi.challenge(); challengeId.value = res.data.challengeId; challengeReadyAt.value = humanChallengeReadyAt() }
 const verify = async () => {
   if (verified.value) return
   verifying.value = true; errorText.value = ''
   try {
     if (!challengeId.value) await challenge()
+    await waitUntilHumanChallengeReady(challengeReadyAt.value)
     const res = await authApi.verify(challengeId.value)
     form.humanToken = res.data.humanToken; verified.value = true
-  } catch (e) { errorText.value = e.message || '安全验证失败'; challengeId.value = ''; challenge().catch(() => {}) }
+  } catch (e) { errorText.value = e.message || '安全验证失败'; if (e.code !== 429) { challengeId.value = ''; challengeReadyAt.value = 0; challenge().catch(() => {}) } }
   finally { verifying.value = false }
 }
 const submit = async () => {
@@ -52,7 +54,7 @@ const submit = async () => {
   try {
     const res = await authApi.login({ ...form }); localStorage.setItem('token', res.data.token); localStorage.setItem('userInfo', JSON.stringify(res.data)); router.replace(String(route.query.redirect || '/'))
   } catch (e) {
-    errorText.value = e.message || '登录失败'; verified.value = false; form.humanToken = ''; challengeId.value = ''; challenge().catch(() => {})
+    errorText.value = e.message || '登录失败'; verified.value = false; form.humanToken = ''; challengeId.value = ''; challengeReadyAt.value = 0; challenge().catch(() => {})
   } finally { loading.value = false }
 }
 onMounted(() => { if (route.query.registered) form.username = String(route.query.registered); challenge().catch(() => { errorText.value = '安全验证服务暂时不可用，请刷新重试' }) })

@@ -26,7 +26,8 @@ spring:
 notification:
   mail:
     enabled: ${MAIL_ENABLED:false}
-    default-recipient: ${MAIL_RECIPIENT:}
+    # 兼容早期部署文档使用过的 MAIL_TO；新部署统一使用 MAIL_RECIPIENT。
+    default-recipient: ${MAIL_RECIPIENT:${MAIL_TO:}}
 
 logistics:
   provider: ${LOGISTICS_PROVIDER:manual}
