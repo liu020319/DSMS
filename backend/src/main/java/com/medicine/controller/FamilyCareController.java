@@ -5,7 +5,9 @@ import com.medicine.common.Result;
 import com.medicine.dto.*;
 import com.medicine.entity.*;
 import com.medicine.service.FamilyCareService;
+import com.medicine.service.PurchaseEvidenceService;
 import com.medicine.util.AccessControl;
+import com.medicine.vo.PurchaseEvidenceVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
@@ -17,6 +19,7 @@ import java.util.*;
 @RequestMapping("/family")
 public class FamilyCareController {
     @Autowired private FamilyCareService familyCareService;
+    @Autowired private PurchaseEvidenceService purchaseEvidenceService;
     @Autowired private AccessControl accessControl;
 
     @PostMapping("/request")
@@ -52,7 +55,30 @@ public class FamilyCareController {
                 && !current.equals(order.getElderId()) && !current.equals(order.getParentId())) {
             throw new BusinessException(403, "无权查看该订单");
         }
+        result.put("evidenceTimeline", purchaseEvidenceService.listByOrder(id, current, role(request)));
         return Result.success(result);
+    }
+
+    @PostMapping("/order/{id}/evidence")
+    public Result<PurchaseEvidenceVO> addEvidence(@PathVariable("id") Long id,
+                                                   @Valid @RequestBody PurchaseEvidenceDTO dto,
+                                                   HttpServletRequest request) {
+        return Result.success(purchaseEvidenceService.add(id, dto, userId(request), role(request)));
+    }
+
+    @GetMapping("/order/{id}/evidence")
+    public Result<List<PurchaseEvidenceVO>> orderEvidence(@PathVariable("id") Long id,
+                                                           HttpServletRequest request) {
+        return Result.success(purchaseEvidenceService.listByOrder(id, userId(request), role(request)));
+    }
+
+    @GetMapping("/evidence/timeline")
+    public Result<List<PurchaseEvidenceVO>> evidenceTimeline(@RequestParam Long elderId,
+                                                              @RequestParam(required = false) Integer year,
+                                                              @RequestParam(required = false) Integer month,
+                                                              HttpServletRequest request) {
+        return Result.success(purchaseEvidenceService.timeline(elderId, year, month,
+                userId(request), role(request)));
     }
 
     @PostMapping("/order/{id}/logistics")
@@ -117,4 +143,5 @@ public class FamilyCareController {
     }
 
     private Long userId(HttpServletRequest request) { return (Long) request.getAttribute("userId"); }
+    private String role(HttpServletRequest request) { return String.valueOf(request.getAttribute("role")); }
 }

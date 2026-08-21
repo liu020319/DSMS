@@ -35,6 +35,27 @@ logistics:
 security:
   allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 
+# 小规模朋友体验使用邀请码注册，不依赖付费短信。生产环境默认关闭，邀请码只放服务器环境变量。
+portal:
+  registration:
+    enabled: ${PORTAL_REGISTRATION_ENABLED:false}
+    invite-code: ${PORTAL_REGISTRATION_INVITE_CODE:}
+
+# 文件内容存入本地磁盘或华为云 OBS；数据库只保存文件台账和对象键。
+# 本地默认值确保开发机没有云密钥时仍可启动和执行测试。
+storage:
+  provider: ${FILE_STORAGE_PROVIDER:local}
+  object-prefix: ${FILE_OBJECT_PREFIX:dsms/prod}
+  local:
+    base-dir: ${FILE_LOCAL_BASE_DIR:./uploads/assets}
+  obs:
+    endpoint: ${OBS_ENDPOINT:https://obs.cn-north-4.myhuaweicloud.com}
+    bucket: ${OBS_BUCKET:dsms-file}
+    access-key: ${OBS_ACCESS_KEY:}
+    secret-key: ${OBS_SECRET_KEY:}
+  image:
+    max-bytes: ${IMAGE_MAX_BYTES:5242880}
+
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.medicine.entity

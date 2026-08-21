@@ -36,6 +36,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/auth/login",
                         "/auth/human-challenge",
                         "/auth/human-challenge/verify",
+                        "/auth/portal-register",
+                        "/public/services/**",
                         "/error",
                         "/doc.html",
                         "/webjars/**",

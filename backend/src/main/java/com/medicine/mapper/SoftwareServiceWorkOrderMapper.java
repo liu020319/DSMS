@@ -1,0 +1,9 @@
+package com.medicine.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.medicine.entity.SoftwareServiceWorkOrder;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface SoftwareServiceWorkOrderMapper extends BaseMapper<SoftwareServiceWorkOrder> {
+}

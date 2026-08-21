@@ -1,31 +1,32 @@
 package com.medicine.controller;
 
+import com.medicine.service.FileAssetService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class UploadControllerTest {
-    private final UploadController controller = new UploadController();
+    private final FileAssetService service = new FileAssetService(
+            null, null, null, null, 5 * 1024 * 1024L, "dsms/test");
 
     @Test
     void acceptsSupportedImageSignatures() {
-        assertTrue(matches(new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0}, ".jpg"));
-        assertTrue(matches(new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0, 0, 0, 0, 0}, ".png"));
-        assertTrue(matches(new byte[]{'G', 'I', 'F', 0, 0, 0, 0, 0, 0, 0, 0, 0}, ".gif"));
-        assertTrue(matches(new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'}, ".webp"));
+        assertNotNull(detect(new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0}));
+        assertNotNull(detect(new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0, 0, 0, 0, 0}));
+        assertNotNull(detect(new byte[]{'G', 'I', 'F', 0, 0, 0, 0, 0, 0, 0, 0, 0}));
+        assertNotNull(detect(new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'}));
     }
 
     @Test
     void rejectsDisguisedOrTruncatedFiles() {
-        assertFalse(matches("not-an-image".getBytes(), ".png"));
-        assertFalse(matches(new byte[]{(byte) 0x89, 0x50, 0x4e}, ".png"));
-        assertFalse(matches(new byte[12], ".svg"));
+        assertNull(detect("not-an-image".getBytes()));
+        assertNull(detect(new byte[]{(byte) 0x89, 0x50, 0x4e}));
+        assertNull(detect(new byte[12]));
     }
 
-    private boolean matches(byte[] content, String extension) {
-        return Boolean.TRUE.equals(ReflectionTestUtils.invokeMethod(
-                controller, "matchesImageSignature", content, extension));
+    private Object detect(byte[] content) {
+        return ReflectionTestUtils.invokeMethod(service, "detectImage", content);
     }
 }

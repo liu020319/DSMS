@@ -61,11 +61,15 @@ public class NotificationService {
                 n.setEmailStatus("SKIPPED");
                 n.setEmailError("邮件发送未启用或缺少 MAIL_USERNAME/收件邮箱");
             } else {
+                boolean portalNotification = n.getBizType() != null
+                        && n.getBizType().startsWith("SOFTWARE_SERVICE_");
                 SimpleMailMessage message = new SimpleMailMessage();
                 message.setFrom(mailFrom);
                 message.setTo(recipient);
-                message.setSubject("【安心用药】" + n.getTitle());
-                message.setText(n.getContent() + "\n\n请登录家庭慢病用药管理系统查看详情。");
+                message.setSubject((portalNotification ? "【小刘云】" : "【安心用药】") + n.getTitle());
+                message.setText(n.getContent() + (portalNotification
+                        ? "\n\n请登录小刘云软件服务中心查看详情。"
+                        : "\n\n请登录家庭慢病用药管理系统查看详情。"));
                 mailSender.send(message);
                 n.setEmailStatus("SENT");
                 n.setEmailError(null);

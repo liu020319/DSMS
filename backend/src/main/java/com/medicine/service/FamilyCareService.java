@@ -33,6 +33,8 @@ public class FamilyCareService {
     @Autowired private PurchaseRecordService purchaseRecordService;
     @Autowired private StockService stockService;
     @Autowired private NotificationService notificationService;
+    @Autowired private FileAssetService fileAssetService;
+    @Autowired private PurchaseEvidenceService purchaseEvidenceService;
     @Value("${logistics.query-url-template:}") private String logisticsUrlTemplate;
 
     @Transactional(rollbackFor = Exception.class)
@@ -195,6 +197,19 @@ public class FamilyCareService {
         fundMapper.insert(expense);
 
         addLogisticsEvent(order.getOrderId(), "ORDERED", "子女已完成下单", dto.getPurchasePlatform() + "，订单金额¥" + actualTotal, dto.getOrderTime(), "SYSTEM");
+        Long orderScreenshotId = fileIdFromContentUrl(dto.getScreenshotUrl());
+        if (orderScreenshotId != null) {
+            PurchaseEvidenceDTO evidence = new PurchaseEvidenceDTO();
+            evidence.setEvidenceType("ORDER_SCREENSHOT");
+            evidence.setFileId(orderScreenshotId);
+            evidence.setTitle("购药下单截图");
+            evidence.setOccurredTime(dto.getOrderTime());
+            evidence.setAmount(actualTotal);
+            evidence.setPurchasePlatform(dto.getPurchasePlatform());
+            evidence.setNote("创建家庭代购订单时自动归档");
+            purchaseEvidenceService.add(order.getOrderId(), evidence, operatorId,
+                    systemAdmin ? "ADMIN" : "GUARDIAN");
+        }
         task.setStatus("APPROVED");
         task.setHandlerComment("已代购并生成订单" + order.getOrderId());
         approvalTaskMapper.updateById(task);
@@ -249,7 +264,11 @@ public class FamilyCareService {
         if (order == null || !elderId.equals(order.getElderId())) throw new BusinessException("订单不存在或无权操作");
         if ("VERIFIED".equals(order.getReceiptStatus())) throw new BusinessException("该订单已经完成收货核验");
         if ("EXCEPTION".equals(order.getReceiptStatus())) throw new BusinessException("收货异常正在由家属处理，请处理后再重新核验");
-        if (dto.getPhotoUrl() == null || !dto.getPhotoUrl().startsWith("/api/uploads/")) {
+        Long receiptPhotoId = fileIdFromContentUrl(dto.getPhotoUrl());
+        if (receiptPhotoId != null) {
+            fileAssetService.attachBusiness(receiptPhotoId, "RECEIPT_PHOTO",
+                    "ORDER_RECEIPT", orderId, order.getParentId(), elderId, "ELDER");
+        } else if (dto.getPhotoUrl() == null || !dto.getPhotoUrl().startsWith("/api/uploads/")) {
             throw new BusinessException("请上传系统保存的收货照片");
         }
 
@@ -494,6 +513,15 @@ public class FamilyCareService {
 
     private String normalizeApprovalNumber(String value) {
         return value == null ? "" : value.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+    }
+
+    private Long fileIdFromContentUrl(String value) {
+        if (value == null || !value.matches("^/api/files/\\d+/content$")) return null;
+        try {
+            return Long.valueOf(value.substring("/api/files/".length(), value.length() - "/content".length()));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private String reasonLabel(String reason) {

@@ -73,21 +73,20 @@ const defaultOpened = ['medication', 'fulfillment']
 </script>
 
 <style scoped>
-.nav-shell { position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; color: #dce9e9; background: linear-gradient(180deg, #102d35 0%, #0b242c 62%, #091e25 100%); }
-.nav-brand { flex: 0 0 78px; height: 78px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,.07); overflow: hidden; }
+.nav-shell { position: relative; height: 100%; color: #dce9e9; background: linear-gradient(180deg, #102d35 0%, #0b242c 62%, #091e25 100%); }
+.nav-brand { height: 78px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,.07); overflow: hidden; }
 .brand-mark { position: relative; flex: 0 0 40px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; color: #fff; background: linear-gradient(135deg, #2bc58a, #2b8da2); box-shadow: 0 10px 26px rgba(43,197,138,.24); font-size: 21px; }
 .brand-pulse { position: absolute; right: -2px; top: -2px; width: 9px; height: 9px; border-radius: 50%; background: #93f5c9; border: 2px solid #102d35; }
 .brand-copy { min-width: 0; white-space: nowrap; }.brand-copy strong,.brand-copy span { display: block; }.brand-copy strong { color: #fff; font-size: 18px; letter-spacing: 1px; }.brand-copy span { margin-top: 4px; color: #83a3aa; font-size: 10px; letter-spacing: 1px; }
-.workspace-label { flex: none; padding: 18px 20px 7px; color: #658990; font-size: 11px; letter-spacing: 2px; }
-.el-menu { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(152,190,194,.22) transparent; --el-menu-bg-color: transparent; --el-menu-hover-bg-color: rgba(255,255,255,.065); border: 0; background: transparent !important; padding: 0 10px 10px; }
-.el-menu::-webkit-scrollbar { width: 4px; }.el-menu::-webkit-scrollbar-track { background: transparent; }.el-menu::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(152,190,194,.22); }
+.workspace-label { padding: 18px 20px 7px; color: #658990; font-size: 11px; letter-spacing: 2px; }
+.el-menu { --el-menu-bg-color: transparent; --el-menu-hover-bg-color: rgba(255,255,255,.065); border: 0; background: transparent !important; padding: 0 10px 92px; }
 :deep(.el-menu-item), :deep(.el-sub-menu__title) { height: 46px; margin: 3px 0; border-radius: 11px; color: #aac0c4; }
 :deep(.el-menu-item:hover), :deep(.el-sub-menu__title:hover) { color: #fff; background: rgba(255,255,255,.065); }
 :deep(.el-menu-item.is-active) { color: #fff; background: linear-gradient(135deg, rgba(43,197,138,.96), rgba(43,141,162,.92)); box-shadow: 0 8px 22px rgba(11,34,42,.25); }
 :deep(.el-sub-menu .el-menu) { margin: 3px 0 8px; padding: 5px 4px 6px 10px; border: 1px solid rgba(255,255,255,.045); border-radius: 12px; background: rgba(255,255,255,.035) !important; box-shadow: inset 0 1px rgba(255,255,255,.025); }
 :deep(.el-sub-menu .el-menu-item) { min-width: 0; height: 39px; padding-left: 42px !important; font-size: 13px; }
 .nav-badge { margin-left: auto; }
-.nav-footer { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 10px; margin: 10px 14px max(16px, env(safe-area-inset-bottom)); padding: 11px 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 12px; color: #bfd0d3; background: rgba(15,48,57,.96); box-shadow: 0 -12px 28px rgba(4,22,28,.18); }.nav-footer strong,.nav-footer small { display: block; }.nav-footer strong { font-size: 12px; }.nav-footer small { margin-top: 3px; color: #6f9299; font-size: 10px; }.status-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #47d99a; box-shadow: 0 0 0 5px rgba(71,217,154,.1); }
+.nav-footer { position: absolute; left: 14px; right: 14px; bottom: 16px; display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid rgba(255,255,255,.07); border-radius: 12px; color: #bfd0d3; background: rgba(255,255,255,.035); }.nav-footer strong,.nav-footer small { display: block; }.nav-footer strong { font-size: 12px; }.nav-footer small { margin-top: 3px; color: #6f9299; font-size: 10px; }.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #47d99a; box-shadow: 0 0 0 5px rgba(71,217,154,.1); }
 .collapsed .nav-brand { justify-content: center; padding: 0; }.collapsed .el-menu { padding-left: 8px; padding-right: 8px; }
 .collapsed :deep(.el-menu-item), .collapsed :deep(.el-sub-menu__title) { padding: 0 18px !important; }
 </style>
