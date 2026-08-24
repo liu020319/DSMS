@@ -66,6 +66,16 @@ public class PersonalFinanceService {
         ledger.setCurrencyCode("CNY");
         ledger.setStatus(1);
         ledgerMapper.insert(ledger);
+
+        // 账本创建后必须立即可记账，避免“没有付款账户，又无法记第一笔”的死路。
+        PersonalAccount defaultAccount = new PersonalAccount();
+        defaultAccount.setLedgerId(ledger.getLedgerId());
+        defaultAccount.setOwnerUserId(userId);
+        defaultAccount.setAccountName("日常账户");
+        defaultAccount.setAccountType("WECHAT");
+        defaultAccount.setInitialBalance(BigDecimal.ZERO);
+        defaultAccount.setStatus(1);
+        accountMapper.insert(defaultAccount);
         return ledger;
     }
 
@@ -93,6 +103,19 @@ public class PersonalFinanceService {
         account.setStatus(1);
         accountMapper.insert(account);
         return account;
+    }
+
+    @Transactional
+    public void deleteAccount(Long userId, Long accountId) {
+        PersonalAccount account = requireAccountOwner(accountId, userId);
+        Long transactionCount = transactionMapper.selectCount(new LambdaQueryWrapper<PersonalTransaction>()
+                .eq(PersonalTransaction::getOwnerUserId, userId)
+                .eq(PersonalTransaction::getAccountId, accountId));
+        if (transactionCount != null && transactionCount > 0) {
+            throw new BusinessException(409, "账户已有流水，不能删除；请保留为历史账户");
+        }
+        account.setStatus(0);
+        accountMapper.updateById(account);
     }
 
     public List<PersonalTransaction> listTransactions(Long userId, Long ledgerId, String month) {

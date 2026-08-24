@@ -62,6 +62,13 @@ public class PersonalFinanceController {
         return Result.success(account);
     }
 
+    @DeleteMapping("/accounts")
+    public Result<Void> deleteAccount(@RequestParam Long accountId, HttpServletRequest request) {
+        financeService.deleteAccount(userId(request), accountId);
+        log(request, "删除个人账户", "账户ID：" + accountId);
+        return Result.success();
+    }
+
     @GetMapping("/transactions")
     public Result<List<PersonalTransaction>> transactions(@RequestParam Long ledgerId,
                                                            @RequestParam(required = false) String month,

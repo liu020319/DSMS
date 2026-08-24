@@ -4,6 +4,7 @@ import com.medicine.common.BusinessException;
 import com.medicine.entity.PersonalAccount;
 import com.medicine.entity.PersonalLedger;
 import com.medicine.entity.PersonalTransaction;
+import com.medicine.dto.PersonalLedgerDTO;
 import com.medicine.mapper.PersonalAccountMapper;
 import com.medicine.mapper.PersonalBudgetMapper;
 import com.medicine.mapper.PersonalLedgerMapper;
@@ -22,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 
 class PersonalFinanceServiceTest {
     private PersonalFinanceService service;
@@ -44,6 +47,50 @@ class PersonalFinanceServiceTest {
         PersonalLedger ledger = ledger(1L, 99L);
         when(ledgerMapper.selectById(1L)).thenReturn(ledger);
         assertThrows(BusinessException.class, () -> service.listAccounts(10L, 1L));
+    }
+
+    @Test
+    void creatingLedgerAlsoCreatesUsableDefaultAccount() {
+        when(ledgerMapper.selectCount(any())).thenReturn(0L);
+        doAnswer(invocation -> {
+            PersonalLedger ledger = invocation.getArgument(0);
+            ledger.setLedgerId(88L);
+            return 1;
+        }).when(ledgerMapper).insert(any(PersonalLedger.class));
+        PersonalLedgerDTO dto = new PersonalLedgerDTO();
+        dto.setLedgerName("小刘");
+
+        PersonalLedger ledger = service.createLedger(10L, dto);
+
+        assertEquals(88L, ledger.getLedgerId());
+        verify(accountMapper).insert(org.mockito.ArgumentMatchers.argThat(account ->
+                Long.valueOf(88L).equals(account.getLedgerId())
+                        && Long.valueOf(10L).equals(account.getOwnerUserId())
+                        && "日常账户".equals(account.getAccountName())
+                        && BigDecimal.ZERO.compareTo(account.getInitialBalance()) == 0));
+    }
+
+    @Test
+    void accountWithTransactionsCannotBeDeleted() {
+        PersonalAccount account = new PersonalAccount();
+        account.setAccountId(7L); account.setOwnerUserId(10L); account.setStatus(1);
+        when(accountMapper.selectById(7L)).thenReturn(account);
+        when(transactionMapper.selectCount(any())).thenReturn(1L);
+
+        assertThrows(BusinessException.class, () -> service.deleteAccount(10L, 7L));
+    }
+
+    @Test
+    void emptyAccountIsDisabledInsteadOfDestroyingHistory() {
+        PersonalAccount account = new PersonalAccount();
+        account.setAccountId(7L); account.setOwnerUserId(10L); account.setStatus(1);
+        when(accountMapper.selectById(7L)).thenReturn(account);
+        when(transactionMapper.selectCount(any())).thenReturn(0L);
+
+        service.deleteAccount(10L, 7L);
+
+        assertEquals(0, account.getStatus());
+        verify(accountMapper).updateById(account);
     }
 
     @Test

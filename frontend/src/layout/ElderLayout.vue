@@ -26,6 +26,7 @@
         </el-dropdown>
       </el-header>
       <el-main class="app-main"><router-view /></el-main>
+      <RegulatoryFooter />
     </el-container>
   </el-container>
 </template>
@@ -35,6 +36,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useRouter } from 'vue-router'
 import ElderNavigation from '../components/ElderNavigation.vue'
+import RegulatoryFooter from '../components/RegulatoryFooter.vue'
 import { getUnreadNotificationCount } from '../api/family'
 
 const userStore = useUserStore()

@@ -41,6 +41,7 @@ export const financeApi = {
   createLedger: data => api.post('/portal/finance/ledgers', data),
   accounts: ledgerId => api.get('/portal/finance/accounts', { params: { ledgerId } }),
   createAccount: data => api.post('/portal/finance/accounts', data),
+  deleteAccount: accountId => api.delete('/portal/finance/accounts', { params: { accountId } }),
   transactions: (ledgerId, month) => api.get('/portal/finance/transactions', { params: { ledgerId, month } }),
   createTransaction: data => api.post('/portal/finance/transactions', data),
   deleteTransaction: transactionId => api.delete('/portal/finance/transactions', { params: { transactionId } }),
@@ -72,7 +73,8 @@ export const publicInquiryAdminApi = {
   list: status => api.get('/portal/services/public-inquiries', { params: status ? { status } : {} }),
   detail: id => api.get(`/portal/services/public-inquiries/${id}`),
   updateStatus: (id, status) => api.put(`/portal/services/public-inquiries/${id}/status`, { status }),
-  reply: (id, messageText) => api.post(`/portal/services/public-inquiries/${id}/replies`, { messageText })
+  reply: (id, messageText) => api.post(`/portal/services/public-inquiries/${id}/replies`, { messageText }),
+  delete: id => api.delete(`/portal/services/public-inquiries/${id}`)
 }
 
 export const mailDiagnosticsApi = {

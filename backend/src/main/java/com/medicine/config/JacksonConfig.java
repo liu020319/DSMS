@@ -1,7 +1,6 @@
 package com.medicine.config;
 
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
@@ -21,7 +20,7 @@ public class JacksonConfig {
                         new LocalDateSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                 )
                 .deserializers(
-                        new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                        new FlexibleLocalDateTimeDeserializer(),
                         new LocalDateDeserializer(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                 );
     }

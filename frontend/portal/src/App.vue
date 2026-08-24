@@ -10,7 +10,7 @@
       <div class="public-actions"><router-link v-if="!isLoggedIn" to="/login" class="nav-login">登录私有功能</router-link><router-link v-else to="/service-workspace" class="nav-login">服务管理台</router-link><button aria-label="打开导航菜单" @click="publicMenu=!publicMenu">☰</button></div>
     </header>
     <router-view @click="publicMenu=false" />
-    <footer class="public-footer"><div><span class="brand-mark">LX</span><div><b>小刘云</b><small>让需求变成可运行、可讲解、可部署的作品。</small></div></div><nav><router-link to="/">平台首页</router-link><router-link to="/services">免登录开发服务</router-link><a href="/kanglian-cloud/">康联云</a><router-link to="/services">在线咨询</router-link></nav><p>独立开发者作品与技术服务平台 · 非学校官方网站</p></footer>
+    <footer class="public-footer"><div><span class="brand-mark">LX</span><div><b>小刘云</b><small>让需求变成可运行、可讲解、可部署的作品。</small></div></div><nav><router-link to="/">平台首页</router-link><router-link to="/services">免登录开发服务</router-link><a href="/kanglian-cloud/">康联云</a><router-link to="/services">在线咨询</router-link></nav><div class="regulatory-links"><a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">鄂ICP备2026041724号-1</a><a href="https://beian.mps.gov.cn/#/query/webSearch?code=42088102000275" target="_blank" rel="noreferrer">鄂公网安备42088102000275号</a></div><p>独立开发者作品与技术服务平台 · 非学校官方网站</p></footer>
   </div>
   <div v-else class="shell">
     <aside :class="['sidebar', { open: menuOpen }]">
@@ -32,7 +32,7 @@
         <div class="user"><span>{{ avatar }}</span><div><b>{{ user.realName || user.username || '平台用户' }}</b><small>{{ roleName }}</small></div><button @click="logout">退出</button></div>
       </header>
       <section class="page"><router-view /></section>
-      <footer class="site-footer">© 2026 小刘云 · 数字生活与软件服务平台</footer>
+      <footer class="site-footer"><span>© 2026 小刘云 · 数字生活与软件服务平台</span><span class="regulatory-links"><a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">鄂ICP备2026041724号-1</a><a href="https://beian.mps.gov.cn/#/query/webSearch?code=42088102000275" target="_blank" rel="noreferrer">鄂公网安备42088102000275号</a></span></footer>
     </main>
   </div>
 </template>

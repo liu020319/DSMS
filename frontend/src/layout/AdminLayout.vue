@@ -52,6 +52,7 @@
       </el-header>
 
       <el-main class="app-main"><router-view /></el-main>
+      <RegulatoryFooter />
     </el-container>
 
     <el-dialog v-model="commandVisible" title="全局导航" width="560px" class="command-dialog" :show-close="false">
@@ -75,6 +76,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getPendingList } from '../api/approval'
 import AdminNavigation from '../components/AdminNavigation.vue'
+import RegulatoryFooter from '../components/RegulatoryFooter.vue'
 import { getUnreadNotificationCount } from '../api/family'
 
 const userStore = useUserStore()

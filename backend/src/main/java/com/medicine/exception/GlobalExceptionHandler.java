@@ -9,6 +9,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -46,6 +47,13 @@ public class GlobalExceptionHandler {
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("参数绑定失败");
         return Result.error(400, message);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public Result<?> handleHttpMessageNotReadableException(HttpMessageNotReadableException e,
+                                                            HttpServletRequest request) {
+        log.warn("请求内容无法解析: {} - {}", request.getRequestURI(), e.getMessage());
+        return Result.error(400, "请求内容格式不正确，请检查日期时间和字段类型");
     }
 
     @ExceptionHandler(Exception.class)

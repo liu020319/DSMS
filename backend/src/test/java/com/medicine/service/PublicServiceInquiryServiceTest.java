@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -98,6 +99,24 @@ class PublicServiceInquiryServiceTest {
         verify(notificationService, times(1)).notify(
                 org.mockito.ArgumentMatchers.eq(2L), any(), any(),
                 org.mockito.ArgumentMatchers.eq(bizType), org.mockito.ArgumentMatchers.eq(8L));
+    }
+
+    @Test
+    void adminDeleteRemovesMessagesBeforeInquiry() {
+        PublicServiceInquiry inquiry = new PublicServiceInquiry();
+        inquiry.setInquiryId(8L);
+        when(inquiryMapper.selectById(8L)).thenReturn(inquiry);
+
+        service.adminDelete(8L, "ADMIN");
+
+        verify(messageMapper).delete(any());
+        verify(inquiryMapper).deleteById(8L);
+    }
+
+    @Test
+    void nonAdminCannotDeletePublicInquiry() {
+        assertThrows(com.medicine.common.BusinessException.class,
+                () -> service.adminDelete(8L, "PORTAL_USER"));
     }
 
     private PublicServiceInquiryDTO dto() {

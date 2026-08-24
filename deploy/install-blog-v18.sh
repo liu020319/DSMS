@@ -36,7 +36,7 @@ trap rollback ERR
 for required in index.html blog-assets/app.js blog-assets/styles.css; do
   [[ -f "${SOURCE_BLOG}/${required}" ]] || { echo "发布包缺少：frontend/blog/${required}" >&2; exit 1; }
 done
-grep -Fq 'styles.css?release=v18' "${SOURCE_BLOG}/index.html" || { echo "index.html 不是 V18，拒绝发布。" >&2; exit 1; }
+grep -Fq 'styles.css?release=v19' "${SOURCE_BLOG}/index.html" || { echo "index.html 不是本轮 V19 博客产物，拒绝发布。" >&2; exit 1; }
 grep -Fq 'SYSTEM CONSTELLATION' "${SOURCE_BLOG}/blog-assets/app.js" || { echo "app.js 缺少系统星图，拒绝发布。" >&2; exit 1; }
 
 if curl -kfsSL --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/" -o "${PUBLIC_HOME}"; then

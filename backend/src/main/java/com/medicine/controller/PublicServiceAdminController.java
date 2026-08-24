@@ -6,6 +6,7 @@ import com.medicine.dto.PublicInquiryAdminStatusDTO;
 import com.medicine.service.PublicServiceInquiryService;
 import com.medicine.service.SysLogService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -57,6 +58,13 @@ public class PublicServiceAdminController {
                               HttpServletRequest request) {
         inquiryService.adminReply(id, userId(request), dto.getMessageText(), role(request));
         log(request, "回复游客软件咨询", "咨询ID：" + id);
+        return Result.success();
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable("id") Long id, HttpServletRequest request) {
+        inquiryService.adminDelete(id, role(request));
+        log(request, "删除游客软件咨询", "咨询ID：" + id);
         return Result.success();
     }
 

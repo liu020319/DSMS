@@ -175,6 +175,15 @@ public class PublicServiceInquiryService {
         }
     }
 
+    @Transactional
+    public void adminDelete(Long inquiryId, String role) {
+        requireAdmin(role);
+        requireInquiry(inquiryId);
+        messageMapper.delete(new LambdaQueryWrapper<PublicServiceMessage>()
+                .eq(PublicServiceMessage::getInquiryId, inquiryId));
+        inquiryMapper.deleteById(inquiryId);
+    }
+
     private void insertMessage(Long inquiryId, String senderType, Long senderUserId,
                                String messageText, int visibleToVisitor) {
         PublicServiceMessage message = new PublicServiceMessage();
