@@ -105,13 +105,15 @@ CREATE TABLE IF NOT EXISTS family_fund_transaction (
   payment_platform VARCHAR(30) DEFAULT NULL COMMENT '微信/支付宝/银联/现金/其他',
   transaction_time DATETIME NOT NULL,
   reference_order_id BIGINT DEFAULT NULL,
+  reference_purchase_id BIGINT DEFAULT NULL COMMENT '关联直接登记的购药记录',
   proof_url VARCHAR(500) DEFAULT NULL,
   note VARCHAR(500) DEFAULT NULL,
   create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
   PRIMARY KEY (transaction_id),
   UNIQUE KEY uk_fund_order (reference_order_id, transaction_type),
-  KEY idx_fund_elder (elder_id, transaction_time)
+  KEY idx_fund_elder (elder_id, transaction_time),
+  KEY idx_fund_purchase (reference_purchase_id, transaction_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='老人购药资金台账';
 
 CREATE TABLE IF NOT EXISTS user_notification (

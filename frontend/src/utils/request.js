@@ -41,7 +41,11 @@ request.interceptors.response.use(
       localStorage.removeItem('userInfo')
       router.push('/login')
     }
-    if (!error.config?.skipErrorMessage) ElMessage.error(error.message || '网络错误')
+    const status = error.response?.status
+    const message = status === 413
+      ? '图片过大，请选择不超过12MB的图片'
+      : (error.response?.data?.message || error.message || '网络错误')
+    if (!error.config?.skipErrorMessage) ElMessage.error(message)
     return Promise.reject(error)
   }
 )

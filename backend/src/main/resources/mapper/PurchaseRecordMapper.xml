@@ -2,15 +2,23 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.medicine.mapper.PurchaseRecordMapper">
 
+    <sql id="statsFilters">
+        <if test="filter.userId != null">AND pr.user_id = #{filter.userId}</if>
+        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <if test="filter.startDate != null">AND pr.purchase_date &gt;= #{filter.startDate}</if>
+        <if test="filter.endDate != null">AND pr.purchase_date &lt;= #{filter.endDate}</if>
+        <if test="filter.year != null">AND YEAR(pr.purchase_date) = #{filter.year}</if>
+        <if test="filter.month != null">AND MONTH(pr.purchase_date) = #{filter.month}</if>
+        <if test="filter.platform != null and filter.platform != ''">AND pr.purchase_platform = #{filter.platform}</if>
+        <if test="filter.channel != null and filter.channel != ''">AND pr.purchase_channel = #{filter.channel}</if>
+    </sql>
+
     <select id="selectMonthlyStatsDynamic" resultType="java.util.Map">
         SELECT DATE_FORMAT(pr.purchase_date, '%Y-%m') as month,
                SUM(pr.total_price) as total_amount, COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">
-            AND pr.user_id = #{userId}
-        </if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
         GROUP BY DATE_FORMAT(pr.purchase_date, '%Y-%m')
         ORDER BY month
     </select>
@@ -21,8 +29,7 @@
                COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">AND pr.user_id = #{userId}</if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
         GROUP BY DATE_FORMAT(pr.purchase_date, '%x-W%v') ORDER BY week
     </select>
 
@@ -32,8 +39,7 @@
                COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">AND pr.user_id = #{userId}</if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
         GROUP BY COALESCE(NULLIF(pr.purchase_platform,''), '未填写') ORDER BY total_amount DESC
     </select>
 
@@ -43,8 +49,7 @@
                COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">AND pr.user_id = #{userId}</if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
         GROUP BY CASE WHEN pr.purchase_channel = 'OFFLINE' THEN '线下' ELSE '线上' END ORDER BY total_amount DESC
     </select>
 
@@ -58,8 +63,7 @@
                COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">AND pr.user_id = #{userId}</if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
         GROUP BY CASE
                  WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 0 AND 5 THEN '凌晨(0-6点)'
                  WHEN HOUR(COALESCE(pr.purchase_time, pr.create_time)) BETWEEN 6 AND 11 THEN '上午(6-12点)'
@@ -74,8 +78,7 @@
                COALESCE(SUM(CASE WHEN pr.purchase_channel = 'OFFLINE' THEN 0 ELSE pr.total_price END),0) as online_amount,
                COALESCE(SUM(CASE WHEN pr.purchase_channel = 'OFFLINE' THEN pr.total_price ELSE 0 END),0) as offline_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">AND pr.user_id = #{userId}</if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
     </select>
 
     <select id="selectDailyStatsDynamic" resultType="java.util.Map">
@@ -83,11 +86,7 @@
                SUM(pr.total_price) as total_amount, COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">
-            AND pr.user_id = #{userId}
-        </if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
-        AND pr.purchase_date >= #{startDate}
+        <include refid="statsFilters" />
         GROUP BY DATE_FORMAT(pr.purchase_date, '%Y-%m-%d')
         ORDER BY day
     </select>
@@ -97,10 +96,7 @@
                SUM(pr.total_price) as total_amount, COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)) as count,
                ROUND(SUM(pr.total_price) / NULLIF(COUNT(DISTINCT COALESCE(pr.order_id, pr.purchase_id)), 0), 2) as average_amount
         FROM purchase_record pr WHERE pr.deleted = 0
-        <if test="userId != null">
-            AND pr.user_id = #{userId}
-        </if>
-        <if test="allowedUserIds != null">AND pr.user_id IN <foreach collection="allowedUserIds" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+        <include refid="statsFilters" />
         GROUP BY DATE_FORMAT(pr.purchase_date, '%Y')
         ORDER BY year
     </select>

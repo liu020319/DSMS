@@ -5,6 +5,10 @@ server:
     context-path: /api
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:12MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:13MB}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${SPRING_DATASOURCE_URL}
@@ -55,7 +59,7 @@ storage:
     access-key: ${OBS_ACCESS_KEY:}
     secret-key: ${OBS_SECRET_KEY:}
   image:
-    max-bytes: ${IMAGE_MAX_BYTES:5242880}
+    max-bytes: ${IMAGE_MAX_BYTES:12582912}
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

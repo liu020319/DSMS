@@ -150,12 +150,32 @@
             </el-option-group>
           </el-select>
         </el-form-item>
+        <el-form-item label="购买渠道">
+          <el-select v-model="form.purchaseChannel" placeholder="选择线上或线下" style="width:100%">
+            <el-option label="线上" value="ONLINE" />
+            <el-option label="线下" value="OFFLINE" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="收货状态">
           <el-radio-group v-model="form.receiptStatus">
             <el-radio :value="0">已下单未收货</el-radio>
             <el-radio :value="1">已确认收货</el-radio>
           </el-radio-group>
           <div style="margin-top:4px;color:#999;font-size:12px">线下购药可直接选"已确认收货"，线上购药等药品到货后再确认</div>
+        </el-form-item>
+        <el-form-item v-if="!isEdit" label="购药凭证">
+          <div class="evidence-editor">
+            <p>可上传问诊记录、下单截图、付款凭证和发票。文件会存入私有文件中心，并和本次购药记录一起入库。</p>
+            <div class="evidence-grid">
+              <div v-for="item in evidenceTypes" :key="item.value" class="evidence-item" :class="{ ready: evidenceFiles[item.value] }">
+                <span><b>{{ item.label }}</b><small>{{ evidenceFiles[item.value]?.name || item.hint }}</small></span>
+                <el-upload :show-file-list="false" :http-request="option => uploadEvidence(item, option)" accept="image/jpeg,image/png,image/webp">
+                  <el-button :loading="uploadingEvidence[item.value]" size="small">{{ evidenceFiles[item.value] ? '重新上传' : '选择图片' }}</el-button>
+                </el-upload>
+                <el-button v-if="evidenceFiles[item.value]" text type="danger" size="small" @click="removeEvidence(item.value)">移除</el-button>
+              </div>
+            </div>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -176,6 +196,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMobile } from '../../composables/useMobile'
 import { downloadFile } from '../../utils/download'
 import { useUserStore } from '../../stores/user'
+import request from '../../utils/request'
 
 const userStore = useUserStore()
 const tableData = ref([])
@@ -191,6 +212,14 @@ const calcDetail = ref(null)
 const page = reactive({ current: 1, size: 10, total: 0 })
 const search = reactive({ userId: null, approvalNumber: '' })
 const roleMap = { ADMIN: '管理员', ELDER: '父母', CHILD: '子女' }
+const evidenceTypes = [
+  { value: 'CONSULTATION', label: '问诊记录', hint: '医生问诊或处方截图' },
+  { value: 'ORDER_SCREENSHOT', label: '下单截图', hint: '平台订单详情截图' },
+  { value: 'PAYMENT', label: '付款凭证', hint: '支付成功页面截图' },
+  { value: 'INVOICE', label: '发票凭证', hint: '电子或纸质发票照片' }
+]
+const evidenceFiles = reactive({})
+const uploadingEvidence = reactive({})
 
 const formatUserLabel = (u) => {
   return `${u.realName}（${roleMap[u.role] || '未知'}）`
@@ -203,7 +232,7 @@ const formatPrescriptionLabel = (p) => {
 const form = reactive({
   purchaseId: null, userId: null, prescriptionId: null,
   purchaseDate: '', quantityBoxes: 1, unitPrice: '', expiryDate: '', purchasePlatform: '',
-  receiptStatus: 0
+  purchaseChannel: 'ONLINE', receiptStatus: 0
 })
 
 const totalPrice = computed(() => {
@@ -243,9 +272,10 @@ const handleAdd = () => {
   isEdit.value = false
   Object.assign(form, {
     purchaseId: null, userId: null, prescriptionId: null,
-    purchaseDate: '', quantityBoxes: 1, unitPrice: '', expiryDate: '', purchasePlatform: '',
+    purchaseDate: '', quantityBoxes: 1, unitPrice: '', expiryDate: '', purchasePlatform: '', purchaseChannel: 'ONLINE',
     receiptStatus: 0
   })
+  Object.keys(evidenceFiles).forEach(key => delete evidenceFiles[key])
   prescriptionList.value = []
   calcDetail.value = null
   dialogVisible.value = true
@@ -253,9 +283,10 @@ const handleAdd = () => {
 
 const quickAdd = async (item) => {
   isEdit.value = false
+  Object.keys(evidenceFiles).forEach(key => delete evidenceFiles[key])
   Object.assign(form, {
     purchaseId: null, userId: item.userId, prescriptionId: item.prescriptionId,
-    purchaseDate: '', quantityBoxes: 1, unitPrice: '', expiryDate: '', purchasePlatform: '',
+    purchaseDate: '', quantityBoxes: 1, unitPrice: '', expiryDate: '', purchasePlatform: '', purchaseChannel: 'ONLINE',
     receiptStatus: 0
   })
   if (item.userId) {
@@ -268,6 +299,7 @@ const quickAdd = async (item) => {
 
 const handleEdit = (row) => {
   isEdit.value = true
+  Object.keys(evidenceFiles).forEach(key => delete evidenceFiles[key])
   Object.assign(form, row, { unitPrice: String(row.unitPrice || ''), receiptStatus: row.receiptStatus || 0 })
   if (row.userId) {
     onUserChange(row.userId)
@@ -278,18 +310,37 @@ const handleEdit = (row) => {
 
 const handleSubmit = async () => {
   await formRef.value.validate()
-  form.operatorId = userStore.userInfo.userId
-  form.unitPrice = parseFloat(form.unitPrice) || 0
+  const evidenceList = Object.values(evidenceFiles).map(item => ({
+    evidenceType: item.type, fileId: item.fileId, title: item.label,
+    occurredTime: `${form.purchaseDate}T12:00:00`,
+    amount: ['PAYMENT','INVOICE'].includes(item.type) ? Number(totalPrice.value) : null,
+    purchasePlatform: form.purchasePlatform, note: '新增购药记录时归档'
+  }))
+  const payload = { ...form, operatorId: userStore.userInfo.userId, unitPrice: parseFloat(form.unitPrice) || 0 }
   if (isEdit.value) {
-    await updatePurchase(form)
+    await updatePurchase(payload)
   } else {
-    await addPurchase(form)
+    await addPurchase({ ...payload, evidenceList,
+      proofUrl: evidenceList.length ? evidenceFiles[evidenceList[0].evidenceType].url : '' })
   }
   ElMessage.success('操作成功')
   dialogVisible.value = false
   loadData()
   loadWarningList()
 }
+
+const uploadEvidence = async (item, option) => {
+  uploadingEvidence[item.value] = true
+  try {
+    const formData = new FormData()
+    formData.append('file', option.file)
+    formData.append('category', item.value)
+    const res = await request.post('/files/images', formData)
+    evidenceFiles[item.value] = { type: item.value, label: item.label, fileId: res.data.fileId, url: res.data.url, name: option.file.name }
+    ElMessage.success(`${item.label}已安全上传`)
+  } finally { uploadingEvidence[item.value] = false }
+}
+const removeEvidence = type => { delete evidenceFiles[type] }
 
 const handleDelete = async (row) => {
   await ElMessageBox.confirm('确定删除该购药记录？', '提示')
@@ -366,7 +417,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.evidence-editor{width:100%;padding:14px;border:1px solid #dfe9e3;border-radius:12px;background:#f8fbf9}.evidence-editor>p{margin:0 0 12px;color:#6e7d74;font-size:13px;line-height:1.6}.evidence-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.evidence-item{display:flex;align-items:center;gap:8px;padding:11px;border:1px dashed #cfdcd4;border-radius:10px;background:#fff}.evidence-item.ready{border-style:solid;border-color:#8fc5a7;background:#f2faf5}.evidence-item>span{min-width:0;margin-right:auto}.evidence-item b,.evidence-item small{display:block}.evidence-item small{margin-top:3px;overflow:hidden;color:#849088;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:760px){
+  .evidence-grid{grid-template-columns:1fr}
   :deep(.el-row){row-gap:10px}
   :deep(.el-form-item){display:block}
   :deep(.el-form-item__label){width:auto!important;justify-content:flex-start;margin-bottom:5px}

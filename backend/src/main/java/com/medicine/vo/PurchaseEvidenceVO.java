@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class PurchaseEvidenceVO {
     private Long evidenceId;
     private Long orderId;
+    private Long purchaseId;
     private Long elderId;
     private String evidenceType;
     private String evidenceTypeText;

@@ -512,7 +512,10 @@ public class FamilyCareService {
     }
 
     private String normalizeApprovalNumber(String value) {
-        return value == null ? "" : value.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+        if (value == null) return "";
+        return value.replaceAll("\\s+", "")
+                .replaceFirst("^(?i:国药准字)", "")
+                .toUpperCase(Locale.ROOT);
     }
 
     private Long fileIdFromContentUrl(String value) {

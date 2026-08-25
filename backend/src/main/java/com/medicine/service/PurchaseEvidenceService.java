@@ -5,8 +5,11 @@ import com.medicine.common.BusinessException;
 import com.medicine.dto.PurchaseEvidenceDTO;
 import com.medicine.entity.FamilyPurchaseOrder;
 import com.medicine.entity.PurchaseEvidence;
+import com.medicine.entity.PurchaseRecord;
+import com.medicine.entity.SysUser;
 import com.medicine.mapper.FamilyPurchaseOrderMapper;
 import com.medicine.mapper.PurchaseEvidenceMapper;
+import com.medicine.mapper.SysUserMapper;
 import com.medicine.util.AccessControl;
 import com.medicine.vo.PurchaseEvidenceVO;
 import org.springframework.stereotype.Service;
@@ -40,17 +43,59 @@ public class PurchaseEvidenceService {
     private final FileAssetService fileAssetService;
     private final NotificationService notificationService;
     private final AccessControl accessControl;
+    private final SysUserMapper userMapper;
 
     public PurchaseEvidenceService(PurchaseEvidenceMapper evidenceMapper,
                                    FamilyPurchaseOrderMapper orderMapper,
                                    FileAssetService fileAssetService,
                                    NotificationService notificationService,
-                                   AccessControl accessControl) {
+                                   AccessControl accessControl,
+                                   SysUserMapper userMapper) {
         this.evidenceMapper = evidenceMapper;
         this.orderMapper = orderMapper;
         this.fileAssetService = fileAssetService;
         this.notificationService = notificationService;
         this.accessControl = accessControl;
+        this.userMapper = userMapper;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void addForPurchase(PurchaseRecord purchase, List<PurchaseEvidenceDTO> items,
+                               Long currentUserId, String role) {
+        if (items == null || items.isEmpty()) return;
+        if (items.size() > TYPES.size()) throw new BusinessException(400, "一次最多上传四类购药凭证");
+        SysUser elder = userMapper.selectById(purchase.getUserId());
+        if (elder == null || elder.getBindParentId() == null) {
+            throw new BusinessException(400, "购药成员尚未绑定家庭守护人，不能归档家庭凭证");
+        }
+        Set<String> submittedTypes = new HashSet<>();
+        for (PurchaseEvidenceDTO dto : items) {
+            String type = normalizeType(dto.getEvidenceType());
+            if (!submittedTypes.add(type)) throw new BusinessException(400, "同一类购药凭证不能重复提交");
+            fileAssetService.attachBusiness(dto.getFileId(), type, "PURCHASE_RECORD",
+                    purchase.getPurchaseId(), elder.getBindParentId(), currentUserId, role);
+
+            PurchaseEvidence evidence = new PurchaseEvidence();
+            evidence.setPurchaseId(purchase.getPurchaseId());
+            evidence.setElderId(purchase.getUserId());
+            evidence.setParentId(elder.getBindParentId());
+            evidence.setEvidenceType(type);
+            evidence.setFileId(dto.getFileId());
+            evidence.setTitle(defaultTitle(dto.getTitle(), type));
+            evidence.setOccurredTime(dto.getOccurredTime());
+            evidence.setAmount(dto.getAmount());
+            evidence.setPurchasePlatform(blankToDefault(dto.getPurchasePlatform(), purchase.getPurchasePlatform()));
+            evidence.setNote(blankToNull(dto.getNote()));
+            evidence.setCreatedBy(currentUserId);
+            evidenceMapper.insert(evidence);
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteByPurchase(Long purchaseId) {
+        List<PurchaseEvidence> items = evidenceMapper.selectList(new LambdaQueryWrapper<PurchaseEvidence>()
+                .eq(PurchaseEvidence::getPurchaseId, purchaseId));
+        for (PurchaseEvidence item : items) evidenceMapper.deleteById(item.getEvidenceId());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -95,10 +140,6 @@ public class PurchaseEvidenceService {
                                              Long currentUserId, String role) {
         if (elderId == null) throw new BusinessException(400, "请选择家庭成员");
         requireCurrentFamilyAccess(elderId, currentUserId, role);
-        FamilyPurchaseOrder sample = orderMapper.selectOne(new LambdaQueryWrapper<FamilyPurchaseOrder>()
-                .eq(FamilyPurchaseOrder::getElderId, elderId).last("LIMIT 1"));
-        if (sample == null) return new ArrayList<>();
-
         LambdaQueryWrapper<PurchaseEvidence> wrapper = new LambdaQueryWrapper<PurchaseEvidence>()
                 .eq(PurchaseEvidence::getElderId, elderId);
         if (year != null) {
@@ -160,6 +201,7 @@ public class PurchaseEvidenceService {
         PurchaseEvidenceVO vo = new PurchaseEvidenceVO();
         vo.setEvidenceId(item.getEvidenceId());
         vo.setOrderId(item.getOrderId());
+        vo.setPurchaseId(item.getPurchaseId());
         vo.setElderId(item.getElderId());
         vo.setEvidenceType(item.getEvidenceType());
         vo.setEvidenceTypeText(TYPE_TEXT.get(item.getEvidenceType()));

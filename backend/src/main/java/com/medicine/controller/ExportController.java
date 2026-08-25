@@ -2,6 +2,7 @@ package com.medicine.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.medicine.common.Result;
+import com.medicine.dto.PurchaseStatsFilter;
 import com.medicine.entity.Medicine;
 import com.medicine.entity.PurchaseRecord;
 import com.medicine.entity.SysLog;
@@ -139,16 +140,18 @@ public class ExportController {
             vo.setOperatorName(r.getOperatorName());
             exportList.add(vo);
         }
+        PurchaseStatsFilter statsFilter = new PurchaseStatsFilter();
+        statsFilter.setUserId(userId);
         com.alibaba.excel.ExcelWriter writer = com.alibaba.excel.EasyExcel.write(response.getOutputStream()).build();
         try {
             writer.write(exportList, com.alibaba.excel.EasyExcel.writerSheet(0, "购药明细").head(PurchaseExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getYearlyStats(userId, allowedUserIds), "year"), com.alibaba.excel.EasyExcel.writerSheet(1, "年度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getMonthlyStats(userId, allowedUserIds), "month"), com.alibaba.excel.EasyExcel.writerSheet(2, "月度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getWeeklyStats(userId, allowedUserIds), "week"), com.alibaba.excel.EasyExcel.writerSheet(3, "周度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getPlatformStats(userId, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(4, "平台汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getDailyStats(userId, java.time.LocalDate.now().minusYears(10).toString(), allowedUserIds), "day"), com.alibaba.excel.EasyExcel.writerSheet(5, "日度汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getChannelStats(userId, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(6, "线上线下汇总").head(ExpenseSummaryExportVO.class).build());
-            writer.write(toSummary(purchaseRecordService.getTimeBucketStats(userId, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(7, "购药时段汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getYearlyStats(statsFilter, allowedUserIds), "year"), com.alibaba.excel.EasyExcel.writerSheet(1, "年度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getMonthlyStats(statsFilter, allowedUserIds), "month"), com.alibaba.excel.EasyExcel.writerSheet(2, "月度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getWeeklyStats(statsFilter, allowedUserIds), "week"), com.alibaba.excel.EasyExcel.writerSheet(3, "周度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getPlatformStats(statsFilter, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(4, "平台汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getDailyStats(statsFilter, allowedUserIds), "day"), com.alibaba.excel.EasyExcel.writerSheet(5, "日度汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getChannelStats(statsFilter, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(6, "线上线下汇总").head(ExpenseSummaryExportVO.class).build());
+            writer.write(toSummary(purchaseRecordService.getTimeBucketStats(statsFilter, allowedUserIds), "name"), com.alibaba.excel.EasyExcel.writerSheet(7, "购药时段汇总").head(ExpenseSummaryExportVO.class).build());
         } finally {
             writer.finish();
         }

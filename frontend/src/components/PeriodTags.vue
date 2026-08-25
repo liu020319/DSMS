@@ -78,27 +78,28 @@ const getTagClass = (period) => {
   align-items: center;
   gap: 2px;
   padding: 3px 12px;
-  border-radius: 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  letter-spacing: 1px;
-  transition: all 0.3s;
+  letter-spacing: .3px;
+  transition: border-color .2s, background-color .2s;
 }
 .period-morning {
-  background-color: #67C23A;
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.3);
+  border-color: #b9ddc5;
+  background-color: #edf8f1;
+  color: #2f7650;
 }
 .period-noon {
-  background-color: #E6A23C;
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(230, 162, 60, 0.3);
+  border-color: #ead4a7;
+  background-color: #fff8e8;
+  color: #9a6a1d;
 }
 .period-evening {
-  background-color: #1B2A4A;
-  color: #fff;
-  box-shadow: 0 2px 4px rgba(27, 42, 74, 0.3);
+  border-color: #c9cfe1;
+  background-color: #f0f2f8;
+  color: #4e5877;
 }
 .period-deducted {
   background-color: #C0C4CC;
@@ -108,13 +109,8 @@ const getTagClass = (period) => {
   opacity: 0.8;
 }
 .period-threshold-passed {
-  background-color: #F56C6C;
-  color: #fff;
-  animation: blink 1s ease-in-out infinite;
-  box-shadow: 0 2px 8px rgba(245, 108, 108, 0.5);
-}
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  border-color: #efb7b7;
+  background-color: #fff1f1;
+  color: #b74343;
 }
 </style>

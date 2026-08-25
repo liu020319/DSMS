@@ -3,6 +3,7 @@ package com.medicine.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.medicine.common.Result;
 import com.medicine.dto.PurchaseRecordDTO;
+import com.medicine.dto.PurchaseStatsFilter;
 import com.medicine.entity.PurchaseRecord;
 import com.medicine.service.PurchaseRecordService;
 import com.medicine.service.SysLogService;
@@ -34,6 +35,7 @@ public class PurchaseRecordController {
     public Result<Void> add(@Valid @RequestBody PurchaseRecordDTO dto, HttpServletRequest request) {
         accessControl.requireAdmin(request);
         accessControl.requireOwnerOrAdmin(request, dto.getUserId());
+        dto.setOperatorId(getUserId(request));
         purchaseRecordService.addPurchaseRecord(dto);
         sysLogService.log(getUserId(request), "新增购药记录", "新增购药记录", request.getRemoteAddr());
         return Result.success();
@@ -84,46 +86,44 @@ public class PurchaseRecordController {
     }
 
     @GetMapping("/stats/monthly")
-    public Result<List<Map<String, Object>>> monthlyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+    public Result<List<Map<String, Object>>> monthlyStats(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(purchaseRecordService.getMonthlyStats(userId, accessControl.scopedUserIds(request, userId)));
+        return Result.success(purchaseRecordService.getMonthlyStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
 
     @GetMapping("/stats/daily")
     public Result<List<Map<String, Object>>> dailyStats(
-            @RequestParam(required = false) Long userId,
-            @RequestParam(defaultValue = "30") int days,
+            @ModelAttribute PurchaseStatsFilter filter,
             HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        String startDate = java.time.LocalDate.now().minusDays(days).toString();
-        return Result.success(purchaseRecordService.getDailyStats(userId, startDate, accessControl.scopedUserIds(request, userId)));
+        return Result.success(purchaseRecordService.getDailyStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
 
     @GetMapping("/stats/yearly")
-    public Result<List<Map<String, Object>>> yearlyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+    public Result<List<Map<String, Object>>> yearlyStats(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
         accessControl.requireAdmin(request);
-        return Result.success(purchaseRecordService.getYearlyStats(userId, accessControl.scopedUserIds(request, userId)));
+        return Result.success(purchaseRecordService.getYearlyStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
 
     @GetMapping("/stats/weekly")
-    public Result<List<Map<String, Object>>> weeklyStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getWeeklyStats(userId, accessControl.scopedUserIds(request, userId)));
+    public Result<List<Map<String, Object>>> weeklyStats(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getWeeklyStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
     @GetMapping("/stats/platform")
-    public Result<List<Map<String, Object>>> platformStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getPlatformStats(userId, accessControl.scopedUserIds(request, userId)));
+    public Result<List<Map<String, Object>>> platformStats(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getPlatformStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
     @GetMapping("/stats/channel")
-    public Result<List<Map<String, Object>>> channelStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getChannelStats(userId, accessControl.scopedUserIds(request, userId)));
+    public Result<List<Map<String, Object>>> channelStats(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getChannelStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
     @GetMapping("/stats/time-bucket")
-    public Result<List<Map<String, Object>>> timeBucketStats(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getTimeBucketStats(userId, accessControl.scopedUserIds(request, userId)));
+    public Result<List<Map<String, Object>>> timeBucketStats(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getTimeBucketStats(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
     @GetMapping("/stats/summary")
-    public Result<Map<String, Object>> expenseSummary(@RequestParam(required = false) Long userId, HttpServletRequest request) {
-        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getExpenseSummary(userId, accessControl.scopedUserIds(request, userId)));
+    public Result<Map<String, Object>> expenseSummary(@ModelAttribute PurchaseStatsFilter filter, HttpServletRequest request) {
+        accessControl.requireAdmin(request); return Result.success(purchaseRecordService.getExpenseSummary(filter, accessControl.scopedUserIds(request, filter.getUserId())));
     }
 
     @GetMapping("/export")

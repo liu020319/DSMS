@@ -20,20 +20,20 @@ export function confirmReceipt(id) {
   return request.put('/purchase/confirm-receipt/' + id)
 }
 
-export function getMonthlyStats(userId) {
-  return request.get('/purchase/stats/monthly', { params: { userId } })
+export function getMonthlyStats(params) {
+  return request.get('/purchase/stats/monthly', { params })
 }
 
-export function getDailyStats(userId, days) {
-  return request.get('/purchase/stats/daily', { params: { userId, days } })
+export function getDailyStats(params) {
+  return request.get('/purchase/stats/daily', { params })
 }
 
-export function getYearlyStats(userId) {
-  return request.get('/purchase/stats/yearly', { params: { userId } })
+export function getYearlyStats(params) {
+  return request.get('/purchase/stats/yearly', { params })
 }
 
-export const getWeeklyStats = userId => request.get('/purchase/stats/weekly', { params: { userId } })
-export const getPlatformStats = userId => request.get('/purchase/stats/platform', { params: { userId } })
-export const getChannelStats = userId => request.get('/purchase/stats/channel', { params: { userId } })
-export const getTimeBucketStats = userId => request.get('/purchase/stats/time-bucket', { params: { userId } })
-export const getExpenseSummary = userId => request.get('/purchase/stats/summary', { params: { userId } })
+export const getWeeklyStats = params => request.get('/purchase/stats/weekly', { params })
+export const getPlatformStats = params => request.get('/purchase/stats/platform', { params })
+export const getChannelStats = params => request.get('/purchase/stats/channel', { params })
+export const getTimeBucketStats = params => request.get('/purchase/stats/time-bucket', { params })
+export const getExpenseSummary = params => request.get('/purchase/stats/summary', { params })

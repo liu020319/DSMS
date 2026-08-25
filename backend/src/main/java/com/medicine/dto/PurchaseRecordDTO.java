@@ -3,10 +3,13 @@ package com.medicine.dto;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Positive;
+import javax.validation.Valid;
+import javax.validation.constraints.Size;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class PurchaseRecordDTO {
@@ -32,4 +35,7 @@ public class PurchaseRecordDTO {
     private Long orderId;
     private String proofUrl;
     private Integer receiptStatus;
+    @Valid
+    @Size(max = 4, message = "一次最多上传四类购药凭证")
+    private List<PurchaseEvidenceDTO> evidenceList;
 }

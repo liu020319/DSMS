@@ -17,6 +17,7 @@ public class FamilyFundTransaction {
     private String paymentPlatform;
     private LocalDateTime transactionTime;
     private Long referenceOrderId;
+    private Long referencePurchaseId;
     private String proofUrl;
     private String note;
     private LocalDateTime createTime;

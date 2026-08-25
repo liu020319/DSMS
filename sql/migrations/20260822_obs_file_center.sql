@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS file_asset (
 -- 一笔订单可以有问诊截图、付款截图、发票等多份凭证，不能继续只放一个 proof_url。
 CREATE TABLE IF NOT EXISTS purchase_evidence (
   evidence_id BIGINT NOT NULL AUTO_INCREMENT,
-  order_id BIGINT NOT NULL,
+  order_id BIGINT DEFAULT NULL,
+  purchase_id BIGINT DEFAULT NULL COMMENT '关联直接登记的购药记录',
   elder_id BIGINT NOT NULL,
   parent_id BIGINT NOT NULL,
   evidence_type VARCHAR(30) NOT NULL COMMENT 'CONSULTATION/PAYMENT/INVOICE/ORDER_SCREENSHOT',
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS purchase_evidence (
   deleted TINYINT NOT NULL DEFAULT 0,
   PRIMARY KEY (evidence_id),
   KEY idx_evidence_order_time (order_id, occurred_time, evidence_id),
+  KEY idx_evidence_purchase_time (purchase_id, occurred_time, evidence_id),
   KEY idx_evidence_elder_time (elder_id, occurred_time, evidence_id),
   KEY idx_evidence_file (file_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购药凭证时间线';

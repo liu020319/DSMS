@@ -15,6 +15,7 @@ public class PurchaseEvidence {
     @TableId(type = IdType.AUTO)
     private Long evidenceId;
     private Long orderId;
+    private Long purchaseId;
     private Long elderId;
     private Long parentId;
     private String evidenceType;

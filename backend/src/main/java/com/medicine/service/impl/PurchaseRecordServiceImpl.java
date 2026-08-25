@@ -5,16 +5,20 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.medicine.common.BusinessException;
 import com.medicine.dto.PurchaseRecordDTO;
+import com.medicine.dto.PurchaseStatsFilter;
 import com.medicine.entity.Medicine;
 import com.medicine.entity.Prescription;
 import com.medicine.entity.PurchaseRecord;
+import com.medicine.entity.FamilyFundTransaction;
 import com.medicine.entity.SysUser;
 import com.medicine.mapper.MedicineMapper;
 import com.medicine.mapper.PrescriptionMapper;
 import com.medicine.mapper.PurchaseRecordMapper;
 import com.medicine.mapper.SysUserMapper;
+import com.medicine.mapper.FamilyFundTransactionMapper;
 import com.medicine.service.PurchaseRecordService;
 import com.medicine.service.StockService;
+import com.medicine.service.PurchaseEvidenceService;
 import com.medicine.vo.PurchaseRecordVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,6 +45,12 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
     @Autowired
     private StockService stockService;
 
+    @Autowired
+    private FamilyFundTransactionMapper fundMapper;
+
+    @Autowired
+    private PurchaseEvidenceService purchaseEvidenceService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addPurchaseRecord(PurchaseRecordDTO dto) {
@@ -62,6 +72,9 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         boolean received = dto.getReceiptStatus() != null && dto.getReceiptStatus() == 1;
         record.setReceiptStatus(received ? 1 : 0);
         save(record);
+        if (record.getOrderId() == null) {
+            registerDirectPurchaseLedger(record, dto);
+        }
         if (received) {
             stockService.addStockOnPurchase(dto.getPrescriptionId(), dto.getQuantityBoxes(), dto.getExpiryDate());
         }
@@ -98,9 +111,20 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (dto.getPurchaseChannel() != null) existing.setPurchaseChannel(dto.getPurchaseChannel());
         if (dto.getProofUrl() != null) existing.setProofUrl(dto.getProofUrl());
         updateById(existing);
+        FamilyFundTransaction fund = fundMapper.selectOne(new LambdaQueryWrapper<FamilyFundTransaction>()
+                .eq(FamilyFundTransaction::getReferencePurchaseId, existing.getPurchaseId())
+                .eq(FamilyFundTransaction::getTransactionType, "PURCHASE")
+                .last("LIMIT 1"));
+        if (fund != null) {
+            fund.setAmount(existing.getTotalPrice().negate());
+            fund.setPaymentPlatform(existing.getPurchasePlatform());
+            fund.setTransactionTime(existing.getPurchaseTime());
+            fundMapper.updateById(fund);
+        }
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deletePurchaseRecord(Long purchaseId) {
         PurchaseRecord record = getById(purchaseId);
         if (record == null) {
@@ -112,6 +136,10 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         if (record.getOrderId() != null) {
             throw new BusinessException("家庭代购明细不能在购药记录中单独删除");
         }
+        List<FamilyFundTransaction> funds = fundMapper.selectList(new LambdaQueryWrapper<FamilyFundTransaction>()
+                .eq(FamilyFundTransaction::getReferencePurchaseId, purchaseId));
+        for (FamilyFundTransaction fund : funds) fundMapper.deleteById(fund.getTransactionId());
+        purchaseEvidenceService.deleteByPurchase(purchaseId);
         removeById(purchaseId);
     }
 
@@ -158,6 +186,30 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
         }
     }
 
+    private void registerDirectPurchaseLedger(PurchaseRecord record, PurchaseRecordDTO dto) {
+        SysUser elder = sysUserMapper.selectById(record.getUserId());
+        if (elder == null || elder.getBindParentId() == null) {
+            throw new BusinessException("购药成员尚未绑定家庭守护人，不能从购药余额扣款");
+        }
+        SysUser operator = sysUserMapper.selectById(record.getOperatorId());
+        String role = operator == null ? "GUARDIAN" : operator.getRole();
+
+        FamilyFundTransaction expense = new FamilyFundTransaction();
+        expense.setElderId(record.getUserId());
+        expense.setParentId(elder.getBindParentId());
+        expense.setTransactionType("PURCHASE");
+        expense.setAmount(record.getTotalPrice().negate());
+        expense.setPaymentPlatform(record.getPurchasePlatform());
+        expense.setTransactionTime(record.getPurchaseTime());
+        expense.setReferencePurchaseId(record.getPurchaseId());
+        expense.setProofUrl(record.getProofUrl());
+        expense.setNote("直接登记购药记录扣款");
+        fundMapper.insert(expense);
+
+        purchaseEvidenceService.addForPurchase(record, dto.getEvidenceList(),
+                record.getOperatorId(), role);
+    }
+
     @Override
     public Page<PurchaseRecordVO> pageList(int current, int size, Long userId, Long prescriptionId, String approvalNumber, List<Long> allowedUserIds) {
         Page<PurchaseRecord> page = new Page<>(current, size);
@@ -202,26 +254,30 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
     }
 
     @Override
-    public List<Map<String, Object>> getMonthlyStats(Long userId, List<Long> allowedUserIds) {
-        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectMonthlyStatsDynamic(userId, allowedUserIds);
+    public List<Map<String, Object>> getMonthlyStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) {
+        validateStatsFilter(filter);
+        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectMonthlyStatsDynamic(filter, allowedUserIds);
     }
 
     @Override
-    public List<Map<String, Object>> getDailyStats(Long userId, String startDate, List<Long> allowedUserIds) {
-        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectDailyStatsDynamic(userId, startDate, allowedUserIds);
+    public List<Map<String, Object>> getDailyStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) {
+        validateStatsFilter(filter);
+        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectDailyStatsDynamic(filter, allowedUserIds);
     }
 
     @Override
-    public List<Map<String, Object>> getYearlyStats(Long userId, List<Long> allowedUserIds) {
-        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectYearlyStatsDynamic(userId, allowedUserIds);
+    public List<Map<String, Object>> getYearlyStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) {
+        validateStatsFilter(filter);
+        return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectYearlyStatsDynamic(filter, allowedUserIds);
     }
 
-    @Override public List<Map<String, Object>> getWeeklyStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectWeeklyStatsDynamic(userId, allowedUserIds); }
-    @Override public List<Map<String, Object>> getPlatformStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectPlatformStatsDynamic(userId, allowedUserIds); }
-    @Override public List<Map<String, Object>> getChannelStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectChannelStatsDynamic(userId, allowedUserIds); }
-    @Override public List<Map<String, Object>> getTimeBucketStats(Long userId, List<Long> allowedUserIds) { return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectTimeBucketStatsDynamic(userId, allowedUserIds); }
-    @Override public Map<String, Object> getExpenseSummary(Long userId, List<Long> allowedUserIds) {
-        if (!emptyScope(allowedUserIds)) return baseMapper.selectExpenseSummary(userId, allowedUserIds);
+    @Override public List<Map<String, Object>> getWeeklyStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) { validateStatsFilter(filter); return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectWeeklyStatsDynamic(filter, allowedUserIds); }
+    @Override public List<Map<String, Object>> getPlatformStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) { validateStatsFilter(filter); return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectPlatformStatsDynamic(filter, allowedUserIds); }
+    @Override public List<Map<String, Object>> getChannelStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) { validateStatsFilter(filter); return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectChannelStatsDynamic(filter, allowedUserIds); }
+    @Override public List<Map<String, Object>> getTimeBucketStats(PurchaseStatsFilter filter, List<Long> allowedUserIds) { validateStatsFilter(filter); return emptyScope(allowedUserIds) ? new ArrayList<>() : baseMapper.selectTimeBucketStatsDynamic(filter, allowedUserIds); }
+    @Override public Map<String, Object> getExpenseSummary(PurchaseStatsFilter filter, List<Long> allowedUserIds) {
+        validateStatsFilter(filter);
+        if (!emptyScope(allowedUserIds)) return baseMapper.selectExpenseSummary(filter, allowedUserIds);
         Map<String, Object> empty = new LinkedHashMap<>();
         empty.put("total_amount", BigDecimal.ZERO);
         empty.put("order_count", 0);
@@ -245,6 +301,23 @@ public class PurchaseRecordServiceImpl extends ServiceImpl<PurchaseRecordMapper,
 
     private boolean emptyScope(List<Long> allowedUserIds) {
         return allowedUserIds != null && allowedUserIds.isEmpty();
+    }
+
+    private void validateStatsFilter(PurchaseStatsFilter filter) {
+        if (filter == null) return;
+        if (filter.getStartDate() != null && filter.getEndDate() != null
+                && filter.getStartDate().isAfter(filter.getEndDate())) {
+            throw new BusinessException("开始日期不能晚于结束日期");
+        }
+        if (filter.getYear() != null && (filter.getYear() < 2000 || filter.getYear() > 2100)) {
+            throw new BusinessException("年份范围不正确");
+        }
+        if (filter.getMonth() != null && (filter.getMonth() < 1 || filter.getMonth() > 12)) {
+            throw new BusinessException("月份范围不正确");
+        }
+        if (filter.getMonth() != null && filter.getYear() == null) {
+            throw new BusinessException("选择月份前请先选择年份");
+        }
     }
 
     private List<PurchaseRecordVO> convertToVOList(List<PurchaseRecord> records) {

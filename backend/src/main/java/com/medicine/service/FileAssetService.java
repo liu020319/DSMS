@@ -43,7 +43,7 @@ public class FileAssetService {
                             SysUserMapper userMapper,
                             FileStorageRouter storageRouter,
                             ObsFileStorage obsFileStorage,
-                            @Value("${storage.image.max-bytes:5242880}") long maxImageBytes,
+                            @Value("${storage.image.max-bytes:12582912}") long maxImageBytes,
                             @Value("${storage.object-prefix:dsms/prod}") String objectPrefix) {
         this.fileAssetMapper = fileAssetMapper;
         this.userMapper = userMapper;
@@ -58,7 +58,10 @@ public class FileAssetService {
                                     Long businessId, Long currentUserId, String role) throws IOException {
         if (currentUserId == null) throw new BusinessException(401, "请先登录");
         if (file == null || file.isEmpty()) throw new BusinessException(400, "请选择图片");
-        if (file.getSize() > maxImageBytes) throw new BusinessException(400, "图片大小不能超过5MB");
+        if (file.getSize() > maxImageBytes) {
+            long limitMb = Math.max(1, maxImageBytes / 1024 / 1024);
+            throw new BusinessException(413, "图片过大，请选择不超过" + limitMb + "MB的图片");
+        }
 
         String normalizedCategory = normalizeCategory(category);
         byte[] content = file.getBytes();

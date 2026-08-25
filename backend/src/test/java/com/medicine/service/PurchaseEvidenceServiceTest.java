@@ -6,6 +6,7 @@ import com.medicine.entity.FamilyPurchaseOrder;
 import com.medicine.entity.PurchaseEvidence;
 import com.medicine.mapper.FamilyPurchaseOrderMapper;
 import com.medicine.mapper.PurchaseEvidenceMapper;
+import com.medicine.mapper.SysUserMapper;
 import com.medicine.util.AccessControl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class PurchaseEvidenceServiceTest {
         notificationService = mock(NotificationService.class);
         accessControl = mock(AccessControl.class);
         service = new PurchaseEvidenceService(evidenceMapper, orderMapper, fileAssetService,
-                notificationService, accessControl);
+                notificationService, accessControl, mock(SysUserMapper.class));
 
         FamilyPurchaseOrder order = new FamilyPurchaseOrder();
         order.setOrderId(100L);
